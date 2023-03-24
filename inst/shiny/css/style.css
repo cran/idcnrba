@@ -1,0 +1,208 @@
+body {
+  padding-top: 82px;
+  font-family: 'Calibri', sans-serif;
+  font-size: 16px;
+  color:#000000;
+  background-color: white;
+  background-image: url("https://ideadata.org/preschool-toolkit/static/media/Mountains.91253aa3.svg");
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center bottom;
+}
+
+body hr {
+  border-top: 1px solid #000000;
+  opacity: 0.5;
+}
+
+/* TODO: nasty DT flexdashboard bug that needs a real solution  */
+.dataTables_scrollBody {
+  max-height: calc(100vh - 200px) !important;
+}
+
+/*
+a[href="#section-welcome"] {
+  text-decoration: underline !important;
+}
+*/
+
+.section.sidebar {
+  background-color: rgba(24, 188, 156, 0.1);
+}
+
+.value-box {
+  color: #fff;
+}
+
+.bg-primary {
+  background-color: rgba(44, 62, 80, 0.7);
+}
+
+.navbar-inverse {
+  background-color: rgb(0, 47, 108);
+}
+
+.navbar-inverse .navbar-nav > li > a {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.navbar-inverse .navbar-nav > li.active > a,
+.navbar-inverse .navbar-nav > li.active > a:hover,
+.navbar-inverse .navbar-nav > li.active > a:focus,
+.navbar-inverse .navbar-nav > li > a:hover,
+.navbar-inverse .navbar-nav > li > a:focus {
+  background-color: rgb(28, 68, 123);
+}
+
+.navbar-inverse .navbar-nav > li > a {
+  font-size: 20px;
+  height: 72px;
+}
+
+.navbar-brand {
+  font-size: 0;
+}
+
+.bg-info {
+  background-color: rgba(52, 152, 219, 0.7);
+}
+
+.bg-warning {
+  background-color: rgba(243, 156, 18, 0.7);
+}
+
+.bg-success {
+  background-color: rgba(24, 188, 156, 0.7);
+}
+
+.bg-danger {
+  background-color: rgba(231, 76, 60, 0.7);
+}
+
+.btn {
+  white-space: normal;
+}
+
+.btn-default {
+  background-color: rgb(30, 133, 123);
+  border-color: rgb(30, 133, 123);
+  border-radius: 50px;
+}
+
+.btn-default:hover,
+.btn-default:active,
+.btn-default:focus,
+.btn-default:active:hover,
+.btn-default:active:focus {
+  background-color: rgb(21,91,85);
+  border-color: rgb(21,91,85);
+}
+
+.btn-selected {
+  background-color: rgb(21,91,85);
+  border-color: rgb(21,91,85);
+}
+
+.btn-analysis {
+  font-size: 20px;
+  margin-top: 5pt;
+}
+
+.navbar-inverse .navbar-nav > .open > a,
+.navbar-inverse .navbar-nav > .open > a:hover,
+.navbar-inverse .navbar-nav > .open > a:focus {
+  background-color: rgb(28, 68, 123);
+}
+
+.chart-title {
+  font-size: 16px;
+  border-bottom: 1px solid rgb(0, 0, 0);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+#Resources {
+  position: absolute;
+  right: 0px;
+}
+
+/* consider making width 100%  */
+.welcome-div {
+  width: 66.67%;
+  margin: 0 auto;
+}
+
+.welcome-div h1,
+.welcome-div h2,
+.welcome-div h3,
+.welcome-div h4,
+.welcome-div h5,
+.welcome-div h6 {
+  color: #01579b;
+  margin-top: 0.0625in;
+  margin-bottom: 0.125in;
+}
+
+.download-report {
+  min-height: 100px;
+}
+
+.import-data > .chart-stage {
+  overflow-y: scroll;
+}
+
+.display-data > .chart-stage {
+  overflow-y: scroll;
+}
+
+.display-data .dataTables_scrollBody {
+  overflow-y: hidden !important;
+}
+
+#section-column-2 h5 {
+  font-size: 16px;
+  font-weight: normal;
+  color:#000000;
+}
+
+#options-label-1 h5,
+#options-label-2 h5 {
+  font-size: 18px;
+  font-weight: normal;
+  color:#000000;
+}
+
+
+.identify-data-collection-method > .chart-stage {
+  overflow-y: scroll;
+}
+
+.select-analysis-type h3 {
+  color: #01579b;
+}
+
+.select-analysis-type > .chart-stage {
+  overflow-y: scroll;
+}
+
+.specify-analysis > .chart-stage {
+  overflow-y: scroll;
+}
+
+.paginate_button {
+  background: none !important;
+  background-color: rgb(30, 133, 123) !important;
+  border-color: rgb(30, 133, 123) !important;
+}
+
+.paginate_button:hover,
+.paginate_button:active,
+.paginate_button:focus,
+.paginate_button:active:hover,
+.paginate_button:active:focus, {
+  background: none !important;
+  background-color: rgb(21,91,85) !important;
+  border-color: rgb(21,91,85) !important;
+}
+
+

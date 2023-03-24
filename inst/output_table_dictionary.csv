@@ -1,0 +1,111 @@
+routine_name,column_name,data_type,precision,is_percentage,description,short_label
+calculate_response_rates,RR1_Unweighted,NUMERIC,4,TRUE,"Response Rate (unweighted), calculated using the AAPOR RR1 formula",Response Rate (Unweighted)
+calculate_response_rates,RR1_Weighted,NUMERIC,4,TRUE,"Response Rate (weighted), calculated using the AAPOR RR1 formula",Response Rate (Weighted)
+calculate_response_rates,RR3_Unweighted,NUMERIC,4,TRUE,"Response Rate (unweighted), calculated using the AAPOR RR3 formula",Response Rate (Unweighted)
+calculate_response_rates,RR3_Weighted,NUMERIC,4,TRUE,"Response Rate (weighted), calculated using the AAPOR RR3 formula",Response Rate (Weighted)
+calculate_response_rates,RR5_Unweighted,NUMERIC,4,TRUE,"Response Rate (unweighted), calculated using the AAPOR RR5 formula",Response Rate (Unweighted)
+calculate_response_rates,RR5_Weighted,NUMERIC,4,TRUE,"Response Rate (weighted), calculated using the AAPOR RR5 formula",Response Rate (Weighted)
+calculate_response_rates,n,NUMERIC,0,FALSE,Total sample size ,Total sample size
+calculate_response_rates,Nhat,NUMERIC,5,FALSE,Sum of weights for the total sample,Sum of weights for the total sample
+calculate_response_rates,n_ER,NUMERIC,0,FALSE,Number of eligible respondents,Number of eligible respondents
+calculate_response_rates,Nhat_ER,NUMERIC,5,FALSE,Sum of weights for eligible respondents,Sum of weights for eligible respondents
+calculate_response_rates,n_EN,NUMERIC,0,FALSE,Number of eligible nonrespondents,Number of eligible nonrespondents
+calculate_response_rates,Nhat_EN,NUMERIC,5,FALSE,Sum of weights for eligible nonrespondents,Sum of weights for eligible nonrespondents
+calculate_response_rates,n_IE,NUMERIC,0,FALSE,Number of ineligible cases,Number of ineligible cases
+calculate_response_rates,Nhat_IE,NUMERIC,5,FALSE,Sum of weights for ineligible cases,Sum of weights for ineligible cases
+calculate_response_rates,n_UE,NUMERIC,0,FALSE,Number of cases whose eligibility is unknown,Number of unknown eligibility cases
+calculate_response_rates,Nhat_UE,NUMERIC,5,FALSE,Sum of weights for cases whose eligibility is unknown,Sum of weights for unknown eligibility cases
+calculate_response_rates,e_unwtd,NUMERIC,4,TRUE,"If RR3 is calculated, the eligibility rate estimate e used for the unweighted response rate.",Estimated eligibility rate for unknown eligibility cases (unweighted)
+calculate_response_rates,e_wtd,NUMERIC,4,TRUE,"If RR3 is calculated, the eligibility rate estimate e used for the weighted response rate",Estimated eligibility rate for unknown eligibility cases (weighted)
+chisq_test_ind_response,auxiliary_variable,TEXT,,FALSE,The name of the auxiliary variable tested,Auxiliary variable
+chisq_test_ind_response,statistic,NUMERIC,5,FALSE,The value of the test statistic,Test statistic
+chisq_test_ind_response,ndf,NUMERIC,5,FALSE,Numerator degrees of freedom for the reference distribution,Numerator degrees of freedom
+chisq_test_ind_response,ddf,NUMERIC,5,FALSE,Denominator degrees of freedom for the reference distribution,Denominator degrees of freedom
+chisq_test_ind_response,p_value,NUMERIC,5,FALSE,The p-value of the test of independence ,p value
+chisq_test_ind_response,test_method,TEXT,,FALSE,Text giving the name of the statistical test,Name of test
+chisq_test_ind_response,variance_method,TEXT,,FALSE,Text describing the method of variance estimation,Method of variance estimation
+t_test_vs_external_estimate,estimate,NUMERIC,3,FALSE,The estimated mean/percent from respondents,Estimate from respondents
+t_test_vs_external_estimate,external_estimate,NUMERIC,3,FALSE,An external benchmark estimate,External benchmark estimate
+t_test_vs_external_estimate,difference,NUMERIC,3,FALSE,The difference between the estimate from respondents and the benchmark estimates,Difference
+t_test_vs_external_estimate,std_error,NUMERIC,5,FALSE,The standard error of the difference between the estimate from respondents and the benchmark estimates,Standard error of the difference
+t_test_vs_external_estimate,p_value,NUMERIC,5,FALSE,p-value for the test of the difference between the estimate from the respondent data and the benchmark estimate,p value
+t_test_vs_external_estimate,t_statistic,NUMERIC,5,FALSE,The t-statistic from the test of the difference,Test statistic
+t_test_vs_external_estimate,df,NUMERIC,2,FALSE,The degrees of freedom for the t-test,Degrees of freedom
+chisq_test_vs_external_estimate,statistic,NUMERIC,5,FALSE,The value of the test statistic,Test statistic
+chisq_test_vs_external_estimate,df,NUMERIC,2,FALSE,Degrees of freedom for the reference Chi-Squared distribution,Degrees of freedom
+chisq_test_vs_external_estimate,scale,NUMERIC,5,FALSE,Estimated scale parameter,Scale parameter
+chisq_test_vs_external_estimate,p_value,NUMERIC,5,FALSE,The p-value of the test of independence,p value
+chisq_test_vs_external_estimate,test_method,TEXT,,FALSE,Text giving the name of the statistical test,Name of test
+chisq_test_vs_external_estimate,variance_method,TEXT,,FALSE,Text describing the method of variance estimation,Method of variance estimation
+t_test_resp_vs_full,outcome,TEXT,,FALSE,The variable which is compared between respondents and the full sample,Auxiliary variable
+t_test_resp_vs_full,outcome_category,TEXT,,FALSE,"For a categorical variable, the specific category of that variable",Category of auxiliary variable
+t_test_resp_vs_full,resp_mean,NUMERIC,3,FALSE,Mean/percent among respondents,Mean/percent among respondents
+t_test_resp_vs_full,full_sample_mean,NUMERIC,3,FALSE,Mean/percent in the full sample (regardless of response or eligibility status),Mean/percent in the full sample
+t_test_resp_vs_full,difference,NUMERIC,3,FALSE,The difference between the mean/percent from respondents and the mean/percent from the full sample,Difference
+t_test_resp_vs_full,std_error,NUMERIC,5,FALSE,The standard error of the difference between the estimate from respondents and estimate from the the full sample,Standard error of the difference
+t_test_resp_vs_full,p_value,NUMERIC,5,FALSE,p-value for the test of the difference between the estimate from respondents and the estimate from the full sample,p value
+t_test_resp_vs_full,t_statistic,NUMERIC,5,FALSE,The t-statistic from the test of the difference,Test statistic
+t_test_resp_vs_full,df,NUMERIC,2,FALSE,The degrees of freedom for the t-test,Degrees of freedom
+t_test_resp_vs_full,resp_se,NUMERIC,5,FALSE,Standard error of the mean/percent among respondents,Standard error of the mean/percent among respondents
+t_test_resp_vs_full,full_sample_se,NUMERIC,5,FALSE,Standard error of the mean/percent in the full sample,Standard error of the mean/percent in the full sample
+t_test_resp_vs_full,covariance,NUMERIC,5,FALSE,Covariance between the two means/percents,Covariance between the two means/percents
+t_test_resp_vs_elig,outcome,TEXT,,FALSE,The variable which is compared between respondents and all eligible cases,Auxiliary variable
+t_test_resp_vs_elig,outcome_category,TEXT,,FALSE,"For a categorical variable, the specific category of that variable",Category of auxiliary variable
+t_test_resp_vs_elig,resp_mean,NUMERIC,3,FALSE,Mean/percent among respondents,Mean/percent among respondents
+t_test_resp_vs_elig,elig_mean,NUMERIC,3,FALSE,Mean/percent among all eligible cases (respondents and nonrespondents),Mean/percent among all eligible cases
+t_test_resp_vs_elig,difference,NUMERIC,3,FALSE,The difference between the mean/percent from respondents and the mean/percent from all eligible cases,Difference
+t_test_resp_vs_elig,std_error,NUMERIC,5,FALSE,The standard error of the difference between the estimate from respondents and the estimate from all eligible cases,Standard error of the difference
+t_test_resp_vs_elig,p_value,NUMERIC,5,FALSE,p-value for the test of the difference between the estimate from respondents and the estimate from all eligible cases,p value
+t_test_resp_vs_elig,t_statistic,NUMERIC,5,FALSE,The t-statistic from the test of the difference,Test statistic
+t_test_resp_vs_elig,df,NUMERIC,2,FALSE,The degrees of freedom for the t-test,Degrees of freedom
+t_test_resp_vs_elig,resp_se,NUMERIC,5,FALSE,Standard error of the mean/percent among respondents,Standard error of the mean/percent among respondents
+t_test_resp_vs_elig,elig_se,NUMERIC,5,FALSE,Standard error of the mean/percent among all eligible cases,Standard error of the mean/percent among all eligible cases
+t_test_resp_vs_elig,covariance,NUMERIC,5,FALSE,Covariance between the two means/percents,Covariance between the two means/percents
+t_test_of_weight_adjustment,outcome,TEXT,,FALSE,outcome,outcome
+t_test_of_weight_adjustment,outcome_category,TEXT,,FALSE,outcome_category,outcome_category
+t_test_of_weight_adjustment,Original_mean,NUMERIC,3,FALSE,Mean/percent before weight adjustment,Mean/percent before adjustment
+t_test_of_weight_adjustment,Adjusted_mean,NUMERIC,3,FALSE,Mean/percent after weight adjustment,Mean/percent after adjustment
+t_test_of_weight_adjustment,difference,NUMERIC,3,FALSE,Difference between the unadjusted estimate and the adjusted estimate,Difference
+t_test_of_weight_adjustment,std_error,NUMERIC,5,FALSE,The standard error of the difference between the estimate before adjustment and the estimate after adjustment,Standard error of the difference
+t_test_of_weight_adjustment,p_value,NUMERIC,5,FALSE,p-value for the test of the difference between the estimate before adjustment and the estimate after adjustment,p value
+t_test_of_weight_adjustment,t_statistic,NUMERIC,5,FALSE,The t-statistic from the test of the difference,Test statistic
+t_test_of_weight_adjustment,df,NUMERIC,2,FALSE,The degrees of freedom for the t-test,Degrees of freedom
+t_test_of_weight_adjustment,Original_se,NUMERIC,5,FALSE,Standard error of the mean/percent before adjustment,Standard error of the mean/percent before adjustment
+t_test_of_weight_adjustment,Adjusted_se,NUMERIC,5,FALSE,Standard error of the mean/percent after adjustment,Standard error of the mean/percent after adjustment
+t_test_of_weight_adjustment,covariance,NUMERIC,5,FALSE,Covariance between the two means/percents,Covariance between the two means/percents
+predict_response_status_via_glm,variable,TEXT,,FALSE,Predictor variable in the regression model,Predictor variable
+predict_response_status_via_glm,variable_level_p_value,NUMERIC,5,FALSE,Variable-level p-value for Rao-Scott Likelihood Ratio Test,Variable-level p-value
+predict_response_status_via_glm,variable_category,TEXT,,FALSE,"For categorical variables, the specific category corresponding to the model coefficient",Category of categorical variable
+predict_response_status_via_glm,estimated_coefficient,NUMERIC,5,FALSE,"Estimated coefficient. For numeric predictor variables, there is only one coefficient. For categorical variables, there are multiple coefficients.",Estimated coefficient
+predict_response_status_via_glm,se_coefficient,NUMERIC,5,FALSE,Estimated standard error of the coefficient,Standard error
+predict_response_status_via_glm,conf_intrvl_lower,NUMERIC,5,FALSE,Lower bound of 95% confidence interval for the coefficient,Lower bound of 95% confidence interval
+predict_response_status_via_glm,conf_intrvl_upper,NUMERIC,5,FALSE,Upper bound of 95% confidence interval for the coefficient,Upper bound of 95% confidence interval
+predict_response_status_via_glm,p_value_coefficient,NUMERIC,5,FALSE,p-value from Wald t-test of whether coefficient equals zero,Coefficient p-value from t-test
+predict_response_status_via_glm,LRT_chisq_statistic,NUMERIC,5,FALSE,Variable-level Chi-Squared statistic from Rao-Scott Likelihood Ratio Test,Likelihood ratio test Chi-Squared statistic
+predict_response_status_via_glm,LRT_DEff,NUMERIC,5,FALSE,DEff from Rao-Scott Likelihood Ratio Test,Likelihood ratio test DEff
+predict_response_status_via_glm,LRT_df_numerator,NUMERIC,3,FALSE,Numerator degrees of freedom from Rao-Scott Likelihood Ratio Test,Likelihood ratio test numerator df
+predict_response_status_via_glm,LRT_df_denominator,NUMERIC,3,FALSE,Denominator degrees of freedom from Rao-Scott Likelihood Ratio Test,Likelihood ratio test denominator df
+predict_outcome_via_glm,variable,TEXT,,FALSE,Predictor variable in the regression model,Predictor variable
+predict_outcome_via_glm,variable_level_p_value,NUMERIC,5,FALSE,Variable-level p-value for Rao-Scott Likelihood Ratio Test,Variable-level p-value
+predict_outcome_via_glm,variable_category,TEXT,,FALSE,"For categorical variables, the specific category corresponding to the model coefficient",Category of categorical variable
+predict_outcome_via_glm,estimated_coefficient,NUMERIC,5,FALSE,"Estimated coefficient. For numeric predictor variables, there is only one coefficient. For categorical variables, there are multiple coefficients.",Estimated coefficient
+predict_outcome_via_glm,se_coefficient,NUMERIC,5,FALSE,Estimated standard error of the coefficient,Standard error
+predict_outcome_via_glm,conf_intrvl_lower,NUMERIC,5,FALSE,Lower bound of 95% confidence interval for the coefficient,Lower bound of 95% confidence interval
+predict_outcome_via_glm,conf_intrvl_upper,NUMERIC,5,FALSE,Upper bound of 95% confidence interval for the coefficient,Upper bound of 95% confidence interval
+predict_outcome_via_glm,p_value_coefficient,NUMERIC,5,FALSE,p-value from Wald t-test of whether coefficient equals zero,Coefficient p-value from t-test
+predict_outcome_via_glm,LRT_chisq_statistic,NUMERIC,5,FALSE,Variable-level Chi-Squared statistic from Rao-Scott Likelihood Ratio Test,Likelihood ratio test Chi-Squared statistic
+predict_outcome_via_glm,LRT_DEff,NUMERIC,5,FALSE,DEff from Rao-Scott Likelihood Ratio Test,Likelihood ratio test DEff
+predict_outcome_via_glm,LRT_df_numerator,NUMERIC,5,FALSE,Numerator degrees of freedom from Rao-Scott Likelihood Ratio Test,Likelihood ratio test numerator df
+predict_outcome_via_glm,LRT_df_denominator,NUMERIC,5,FALSE,Denominator degrees of freedom from Rao-Scott Likelihood Ratio Test,Likelihood ratio test denominator df
+get_cumulative_estimates,outcome,TEXT,,FALSE,The variable which is compared between respondents and the full sample,Analysis variable
+get_cumulative_estimates,outcome_category,TEXT,,FALSE,"For a categorical variable, the specific category of that variable",Category of analysis variable
+get_cumulative_estimates,estimate,NUMERIC,3,FALSE,The estimated mean/percent from respondents,Estimate from respondents
+get_cumulative_estimates,std_error,NUMERIC,5,FALSE,The standard error of the estimate from respondents,Standard error of the estimate from respondents
+get_cumulative_estimates,respondent_sample_size,NUMERIC,0,FALSE,Number of eligible respondents,Number of eligible respondents
+analysis_across_subgroups,variable_1,TEXT,,FALSE,Variable used to divide the sample into subgroups,Grouping variable
+analysis_across_subgroups,variable_2,TEXT,,FALSE,Outcome variable for which percentages are estimated,Outcome variable
+analysis_across_subgroups,Percent,NUMERIC,4,TRUE,"Percent for outcome category, within subgroup",Percent
+analysis_across_subgroups,Lower_95_CI,NUMERIC,4,TRUE,Lower bound of 95% confidence interval,Lower bound of 95% confidence interval
+analysis_across_subgroups,Upper_95_CI,NUMERIC,4,TRUE,Upper bound of 95% confidence interval,Upper bound of 95% confidence interval
+analysis_across_subgroups,Weighted_Count,NUMERIC,0,FALSE,Weighted Count (used for calculating percentages),Weighted Count
+analysis_across_subgroups,Unweighted_Count,NUMERIC,0,FALSE,Unweighted Count,Unweighted Count

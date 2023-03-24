@@ -1,0 +1,66 @@
+type,routine_name,routine_label,parameter,parameter_label
+1,calculate_response_rates,Calculate response rates by subgroup,data,Data Frame
+1,calculate_response_rates,Calculate response rates by subgroup,analysis_response_rates_group,Input Variable
+1,calculate_response_rates,Calculate response rates by subgroup,status,Response Eligibility Variable
+1,calculate_response_rates,Calculate response rates by subgroup,status_codes,eligible respondents (ER) and eligible nonrespondents (EN)
+1,calculate_response_rates,Calculate response rates by subgroup,weights,Weights
+1,calculate_response_rates,Calculate response rates by subgroup,rr_formula,Response Rate Formula
+1,calculate_response_rates,Calculate response rates by subgroup,elig_method,Eligibility Method
+1,calculate_response_rates,Calculate response rates by subgroup,e,Eligibility Estimation
+2,chisq_test_ind_response,Test whether subgroups differ in likelihood of responding,survey_design,Survey Design
+2,chisq_test_ind_response,Test whether subgroups differ in likelihood of responding,status,Response Eligibility Variable
+2,chisq_test_ind_response,Test whether subgroups differ in likelihood of responding,status_codes,eligible respondents (ER) and eligible nonrespondents (EN)
+2,chisq_test_ind_response,Test whether subgroups differ in likelihood of responding,aux_vars,Input Variable
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,survey_design,Survey Design
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,status,Response Eligibility Variable
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,status_codes,eligible respondents (ER) and eligible nonrespondents (EN)
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,numeric_predictors,Input Variable
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,categorical_predictors,Input Variable
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,model_selection,Model Selection
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,selection_controls,Parameters for Stepwise Model Selection
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,survey_design,Survey Design
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,y_var,Input Variable
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,status,Response Eligibility Variable
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,status_codes,eligible respondents (ER) and eligible nonrespondents (EN)
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,null_difference,Difference Between Estimate and External Mean
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,alternative,Alternative
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,degrees_of_freedom,Degrees of Freedom
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,survey_design,Survey Design
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,y_var,Input Variable
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,status,Response Eligibility Variable
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,status_codes,eligible respondents (ER) and eligible nonrespondents (EN)
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,null_difference,Difference Between Estimate and External Mean
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,alternative,Alternative
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,degrees_of_freedom,Degrees of Freedom
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,survey_design,Survey Design
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,y_var,Input Variable
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,ext_ests,External Estimate
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,ext_std_errors,Standard Error of External Estimate
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,na.rm,Drop Missing Values
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,null_difference,Difference Between Estimate and External Mean
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,alternative,Alternative
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,degrees_of_freedom,Degrees of Freedom
+5,chisq_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,survey_design,Survey Design
+5,chisq_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,y_var,Input Variable
+5,chisq_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,ext_ests,External Estimate
+5,chisq_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,na.rm,Drop Missing Values
+6,analysis_across_subgroups,Compare outcomes across subgroups,grouping_variable,Input Variable
+6,analysis_across_subgroups,Compare outcomes across subgroups,outcome_variable,Input Variable
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,survey_design,Survey Design
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,outcome_variable,Input Variable
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,outcome_type,Outcome Variable's Type (numeric or binary categorical)
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,outcome_to_predict,Outcome to Predict (if outcome variable is categorical)
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,numeric_predictors,Input Variable
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,categorical_predictors,Input Variable
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,model_selection,Model Selection
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,selection_controls,Parameters for Stepwise Model Selection
+8,get_cumulative_estimates,Assess how estimates change as level-of-effort increases,survey_design,Survey Design
+8,get_cumulative_estimates,Assess how estimates change as level-of-effort increases,y_var,Input Variable
+8,get_cumulative_estimates,Assess how estimates change as level-of-effort increases,y_var_type,Dependent Variable Type
+8,get_cumulative_estimates,Assess how estimates change as level-of-effort increases,predictor_variable,Input Variable
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",orig_design,Original Survey Design
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",updated_design,Updated Survey Design
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",y_vars,Input Variable
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",null_difference,Difference Between Estimate and External Mean
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",alternative,Alternative
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",degrees_of_freedom,Degrees of Freedom

@@ -1,0 +1,4 @@
+Name: IDC NRBA App
+Description: Launch the IDC NRBA App
+Binding: launch_app
+Interactive: true

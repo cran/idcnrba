@@ -1,0 +1,155 @@
+---
+title: "Calculating response rates and checking whether they differ across subpopulations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{App: Calculating response rates and checking whether they differ across subpopulations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: vignette-references.bib
+link-citations: true
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+suppressPackageStartupMessages({
+  library(nrba)
+  library(survey)
+  library(dplyr)
+})
+```
+
+The starting point of any nonresponse bias analysis is to calculate response rates, since nonresponse bias can only occur when a survey or census's response rate is below 100%. When response rates are below 100%, **nonresponse bias will arise if both of the following patterns occur**:
+
+(1) Certain subpopulations are less likely to respond to the survey than others,
+
+and
+
+(2) Those subpopulations differ in outcomes we are trying to measure. 
+
+In this document, we show how to check whether subpopulations differ in terms of their likelihood of responding to a survey.
+
+
+# Calculating response rates
+
+## Data Needs
+
+To calculate response rates, it's not enough to look at just the data from individuals who ultimately responded to the survey; **we need a dataset that includes every individual from whom a response was sought**. For example, if a school sent out an email survey to parents, then to calculate response rates they would need a list of *all* the parents to whom an email was sent, regardless of whether they ultimately responded. For example, we would need a data file with a response status variable for each parent, as in the example table below:
+
+```{r, echo=FALSE}
+involvement_survey_srs |>
+  mutate(RESPONSE_STATUS = case_when(
+    RESPONSE_STATUS == "Respondent" ~ "1 (Respondent)",
+    RESPONSE_STATUS == "Nonrespondent" ~ "2 (Nonrespondent)",
+    RESPONSE_STATUS == "Ineligible" ~ "3 (Ineligible)",
+    RESPONSE_STATUS == "Unknown" ~ "4 (Unknown Eligibility)"
+  )) |>
+  select(UNIQUE_ID, RESPONSE_STATUS) |>
+  group_by(RESPONSE_STATUS) |>
+  sample_n(size = 2) |>
+  ungroup() |>
+  sample_n(size = 8, replace = FALSE) |>
+  knitr::kable()
+```
+
+
+With such a dataset, we need to classify each individual's response status into one of four categories:
+
+- **Ineligible**: This individual was asked to complete the survey, but it was discovered that they were not eligible. For example, if a person was invited to complete a school parent survey and that person replied that they are not in fact a parent, that person would be classified as ineligible.
+
+- **Eligible Respondent**: This individual completed the survey and was in fact eligible to do so.
+
+- **Eligible Nonrespondent**: This individual did not complete the survey, but it is known that they were eligible to do so. For example, a parent may respond to a school's emails for purposes such as communicating with teachers, but they may not respond to a survey invitation sent to their email. In this example, it is thus known that the person is a nonrespondent and that they were in fact eligible for the survey.
+
+- **Unknown Eligibility**: It is unknown whether this individual was eligible to complete the survey. For example, suppose a mail survey was sent to a random sample of addresses in a school district, where the survey was meant to include only parents of school-aged children. If a given address never replies to the survey and it is thus unknown whether any parents live at that address, then the case would be classified as having unknown eligibility.
+
+After loading the dataset into the NRBA app, we can tell the application which variable in the data contains response and eligibility status by using the control with the label "Select the variable indicating response and eligibility status."
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Choosing-Response-Status-Variable.PNG")
+```
+
+Next, we can tell the application how to interpret each category of the response and eligibility status variable. This is particularly useful if the variable uses numeric codes rather than descriptive labels.
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Configuring-Response-Status-Variable.PNG")
+```
+
+For some surveys, every person in the sample might be eligible and so the only values for the response and eligibility status variable would be "Eligible Respondent" or "Eligible Nonrespondent". If that's the case, simply select "[Does not apply]" for the other two categories.
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Configuring-Response-Status-Variable-Does-Not-Apply.PNG")
+```
+
+## Specifying a Response Rate Analysis
+
+With the application, response rates can be calculated overall or by subgroup. To calculate an overall response rate for the sample, simply leave the "Choose group variable(s)" control empty.
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Choose-Group-Variable-Empty.PNG")
+```
+
+To calculate response rates for several different subgroups, we can select one or more grouping variables.
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Choose-Group-Variable-Multiple.PNG")
+```
+
+## Formulas for calculating response rates
+
+When every person invited to participate in a survey is known to be eligible for the survey, it is quite easy to calculate a response rate: simply count the number of respondents and divide this count by the total number of respondents and nonrespondents. Response rate calculations become more complicated when there are cases with unknown eligibility.
+
+When there are cases with unknown eligibility, the common convention is to use one of the response rate formulas promulgated by the American Association for Public Opinion Research (AAPOR); see @theamericanassociationforpublicopinionresearchStandardDefinitionsFinal2016. The three most commonly-used formulas are referred to as "RR1", "RR3", and "RR5". All three formulas are available in the application.
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Choose-Response-Rate-Formula.PNG")
+```
+
+These formulas differ only in how many cases with unknown eligibility are estimated to in fact be eligible for the survey.
+
+$$
+\begin{aligned}
+RR1 &= ER / (ER + EN + UE) \\
+RR3 &= ER / (ER + EN + (e \times UE)) \\
+RR5 &= ER / (ER + EN) \\
+&\text{where:} \\
+ER &\text{ is the total number of eligible respondents} \\
+EN &\text{ is the total number of eligible nonrespondents} \\
+UE &\text{ is the total number of cases whose eligibility is unknown} \\
+&\text{and} \\
+e &\text{ is an *estimate* of the percent of unknown eligibility cases} \\
+&\text{which are in fact eligible}
+\end{aligned}
+$$
+For the RR3 formula, it is necessary to produce an estimate of the share of unknown eligibility cases who are in fact eligible, denoted $e$. One common estimation method is the "CASRO" method: among cases with known eligibility status, calculate the percent who are known to be eligible.
+
+$$
+\begin{aligned}
+\text{CASRO}&\text{ method:} \\
+e &= 1 - \frac{IE}{IE + ER + EN} \\
+\end{aligned}
+$$
+
+When calculating response rates for population subgroups, one can either assume the eligibility rate $e$ is constant across all subgroups or one can estimate the eligibility rate separately for each subgroup. When using the CASRO method to estimate the eligibility rate, the former approach is referred to as the "CASRO overall" method, while the latter approach is referred to as the "CASRO subgroup" method. Either option can be selected in the application.
+
+```{r, echo=FALSE}
+knitr::include_graphics(path = "response-rates-analysis-images/Choosing-Eligibility-Method.PNG")
+```
+
+# Testing for differences in response by subpopulation
+
+To check whether observed differences in response rates are attributable to random sampling, we can use a Chi-Squared test. This test evaluates whether the observed differences in response rates between categories of an auxiliary variable are attributable simply to random sampling rather than subpopulations having different likelihoods of responding to the survey. If the p-value for this test is quite small, then there is evidence that an observed difference in response rates between subpopulations in the sample is unlikely to have arisen simply because of random sampling.
+
+After calculating response rates for an auxiliary variable, a Chi-Squared test for that variable can be conducted using the analysis type named "Test whether subgroups differ in likelihood of responding."
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics(path = "response-rates-analysis-images/Chi-Squared-Test.PNG")
+```
+
+
+# References

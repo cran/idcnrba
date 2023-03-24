@@ -1,0 +1,16 @@
+type,routine_name,routine_label,routine_id,output_title
+1,calculate_response_rates,Calculate response rates by subgroup,1,"Response Rates: {involvement_survey_srs %>%
+group_by(STUDENT_RACE, STUDENT_SEX) |>
+attr(which = 'groups') |>
+colnames() |>
+setdiff("".rows"")}"
+2,chisq_test_ind_response,Test whether subgroups differ in likelihood of responding,1,"Test of Differences in Likelihood of Responding, status variable ""[$STATUS]"" by [$AUX_VARIABLES]"
+3,predict_response_status_via_glm,Identify variables that predict likelihood of responding,1,Identify variables that predict likelihood of responding
+4,t_test_resp_vs_full,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,1,"Compare Estimates for {y_var}, Respondent Survey Data vs. Full Sample Survey Data"
+4,t_test_resp_vs_elig,Compare subgroup percentages in respondent data to data from respondents and nonrespondents,2,"Compare Estimates for {y_var}, Respondent Survey Data vs. All Eligible Sample Survey Data"
+5,t_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,1,"Compare Estimates for {y_var}, Respondent Survey Data vs. External Benchmark"
+5,chisq_test_vs_external_estimate,Compare subgroup percentages in respondent data to external data,2,"Compare Estimates for {y_var}, Respondent Survey Data vs. External Benchmark"
+6,analysis_across_subgroups,Compare outcomes across subgroups,1,Compare outcomes across subgroups
+7,predict_outcome_via_glm,Identify variables that are predictive of survey outcomes,1,Identify variables that are predictive of survey outcomes
+8,get_cumulative_estimates,Assess how outcomes change as level-of-effort increases,1,Assess how outcomes change as level-of-effort increases
+9,t_test_of_weight_adjustment,"Compare estimates based on respondent data, before and after weighting adjustments",1,"Compare Estimates of {y_var}, Before and After Raking on {raking_vars}"
