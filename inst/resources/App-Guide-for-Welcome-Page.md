@@ -34,7 +34,7 @@ When you open the Report module, a list of the analyses you've added to the repo
 
 As you use the IDC *NRBA App*, be aware of additional instructions and help available within it. For example, each module of the IDC *NRBA App* includes written instructions that cover the steps outlined above. In addition, built-in screen tips provide more information and definitions of key terms. You can access these tips by hovering over the text within the app. If you are ready to begin using this tool, move to the Setup tab.
 
-### For More Information
+# For More Information
 
 If you would like more detailed information on using the IDC *NRBA App*, including preparing and importing your dataset, understanding the statistical processes behind each analysis option, and interpreting the results of analyses, see the IDC *NRBA App* Reference Guide.
 For a demonstration of the IDC *NRBA App* using a sample dataset, see [this short video.](https://www.youtube.com/watch?v=0em2O0-QGP8)

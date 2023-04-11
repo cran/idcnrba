@@ -72,7 +72,7 @@ percent <- function(x, digits = 2) {
 }
 
 as_survey_formula <- function(x, ids = FALSE) {
-  if (is.null(x) || nchar(x) == 0) {
+  if (is.null(x) || all(nchar(x) == 0)) {
     if (ids) {
       return(~1)
     } else return(NULL)
@@ -82,7 +82,7 @@ as_survey_formula <- function(x, ids = FALSE) {
 }
 
 as_numeric_input <- function(x) {
-  if (is.null(x) || nchar(x) == 0) {
+  if (is.null(x) || all(nchar(x) == 0)) {
     return(NULL)
   } else if (suppressWarnings(is.na(as.numeric(x)))) {
     input_name <- deparse(substitute(x))
@@ -153,7 +153,9 @@ get_survey_design_object <- function(data, input, secondary_raked = FALSE) {
         data = data,
         weights = as_survey_formula(sampling_weight_variable_input),
         strata = as_survey_formula(input$strata_variables),
-        ids = as_survey_formula(input$psu_cluster_variables, ids = T),
+        ids = as_survey_formula(c(input$psu_cluster_variables,
+                                  input$ssu_cluster_variables), 
+                                ids = T),
         nest = TRUE,
         fpc = as_survey_formula(input$population_size_variables)
       )      
@@ -171,14 +173,14 @@ analysisButton <- function(inputId, label, description = NA, info_link = "#") {
       class = "btn-analysis",
       width = "99%"
     ), width = 11, style = "padding-right: 0px;"),
-    column(tags$a(
+    hidden(column(tags$a(
       id = paste(inputId, "info", sep = "_"), 
       icon("info-circle"),
       class = "action-button",
       style = "font-size: 16px; color: #1e857b;",
       href = info_link,
       target = "_blank"
-    ), width = 1, style = "padding-left: 0px;"),
+    ), width = 1, style = "padding-left: 0px;")),
     style = "padding: .5px;"
   )  
 }
@@ -194,6 +196,7 @@ outputOptions(output, "report_remove_button", suspendWhenHidden = FALSE)
 
 
 render_analysis_output <- function(output_table) {
+  
   most_recent_output_table <<- output_table
   renderUI({
     if("error" %in% class(output_table)) {
@@ -223,17 +226,32 @@ render_analysis_output <- function(output_table) {
         #browser()
         if (names(output_table)[i] %in% routine_dictionary$column_name){
           # if str is double then it is rounded to value in dictionary
-          precision_to_use <- routine_dictionary$precision[which(names(output_table)[i] == routine_dictionary$column_name[routine_dictionary$routine_name == routine_name])]
+          which_routine_dictionary_row <- which(routine_dictionary$column_name[routine_dictionary$routine_name == routine_name] == names(output_table)[i])
+          precision_to_use <- routine_dictionary$precision[which_routine_dictionary_row]
           if (is.double(output_table[,i])) {
             output_table[,i] <- round(output_table[,i,drop=TRUE], digits = precision_to_use)
           } else if (nrow(as.data.frame(output_table[,i])) > 1){
             output_table <- as_tibble(output_table)
-            digit <- precision_to_use
-            output_table[,i] <- output_table[,i] %>% mutate(across(where(is.numeric), round, digit))
+            if (is.numeric(output_table[[i]])) {
+              output_table[[i]] <- round(output_table[[i]], digits = precision_to_use)
+            }
           }
+          which_routine_dictionary_row <- which(routine_dictionary$column_name == names(output_table)[i])
           # checks if output column is labeled as percent
-          if (routine_dictionary$is_percentage[which(names(output_table)[i] == routine_dictionary$column_name)] == TRUE) {
+          is_percentage <- tolower(routine_dictionary$is_percentage[which_routine_dictionary_row])
+          is_percentage <- ifelse(is.na(is_percentage), "no", is_percentage)
+          if (is_percentage == "yes") {
             output_table[,i] <- percent(output_table[,i,drop=TRUE], precision_to_use)
+          }
+          if (is_percentage == "maybe") {
+            col_to_check <- routine_dictionary$percent_determiner[which_routine_dictionary_row]
+            if (col_to_check %in% colnames(output_table)) {
+              for (row_index in seq_len(nrow(output_table))) {
+                if ((!is.na(output_table[[col_to_check]][row_index])) & (output_table[[col_to_check]][row_index] != "")) {
+                  output_table[[i]][row_index] <- percent(as.numeric(output_table[[i]][row_index]), precision_to_use)
+                }
+              }
+            }
           }
         }
       }
@@ -581,7 +599,7 @@ disabled(selectizeInput(
     width = "95%"
 ))
 
-fluidRow(
+hidden(fluidRow(
   column(width = 6,
     disabled(radioButtons(
       input = "replicate_weights",
@@ -600,7 +618,7 @@ fluidRow(
       width = "95%"
     ))
   ) 
-)
+))
 
 hidden(selectizeInput(
   inputId = "replicate_weight_variables",
@@ -848,6 +866,29 @@ observeEvent(input$data_collection_method, {
     show("strata_cluster_pop_div")
   }
 })
+
+#nonrespondent_census_list <- reactive({list(input$data_collection_method, input$eligible_nonrespondents, input$unknown_ineligible, input$analysis_adjust_weights)})
+observeEvent({input$data_collection_method; input$eligible_nonrespondents; input$unknown_ineligible}, {
+  if (input$data_collection_method == "Attempted Census") {
+    if (input$eligible_nonrespondents != "does_not_apply_2") {
+      global_values$is_census_data_with_nonrespondents <- TRUE
+      cat("HIT1\n")
+      hide("population_size_variables")
+    } else if (input$unknown_ineligible != "does_not_apply_4") {
+      global_values$is_census_data_with_nonrespondents <- TRUE
+      cat("HIT2\n")
+      hide("population_size_variables")
+    } else {
+      global_values$is_census_data_with_nonrespondents <- FALSE
+      cat("HIT3\n")
+      show("population_size_variables")
+    }
+  } else {
+    global_values$is_census_data_with_nonrespondents <- FALSE
+    cat("HIT4\n")
+    show("population_size_variables")
+  }
+}, ignoreInit = TRUE)
 
 ```
 
@@ -1116,7 +1157,7 @@ observeEvent(input$analysis_compare_external, {
     tagList(
       selectizeInput(
         inputId = "t3_y_var",
-        label = "Choose one or more grouping variable(s):",
+        label = "Choose a grouping variable:",
         multiple = FALSE,
         choices = colnames(global_values$selected_data),
         width = "95%"
@@ -1377,14 +1418,16 @@ observeEvent(input$analysis_compare_sample, {
       ),
       fluidRow(
         column(width = 10,
-          radioButtons(
-            input = "t4_t_full_or_elig",
-            label = "Choose the comparison:",
-            choices = c("Respondents vs. Respondents and Nonrespondents", "Respondents vs. All sampled cases (regardless of response or eligibility status)"),
-            selected = "",
-            width = "95%",
-            inline = FALSE
-          )
+               hide(
+                 radioButtons(
+                   input = "t4_t_full_or_elig",
+                   label = "Choose the comparison:",
+                   choices = c("Respondents vs. Respondents and Nonrespondents", "Respondents vs. All sampled cases (regardless of response or eligibility status)"),
+                   selected = "Respondents vs. Respondents and Nonrespondents",
+                   width = "95%",
+                   inline = FALSE
+                 )
+               )
         )
       ),
       numericInput(
@@ -1438,7 +1481,14 @@ observeEvent(input$t4_analysis_compare_sample_submit, {
       "UE" = global_values$analysis_ue_category
     )
     
-    if (input$t4_t_full_or_elig == "Respondents vs. All sampled cases (regardless of response or eligibility status)") {
+    if (is.null(input$t4_t_full_or_elig)) {
+      t4_comparison <- "Respondents vs. Respondents and Nonrespondents"
+    } else {
+      t4_comparison <- input$t4_t_full_or_elig
+    }
+    
+    
+    if (t4_comparison == "Respondents vs. All sampled cases (regardless of response or eligibility status)") {
       param_list <<- list(
       "survey_design" = survey_design,
       "y_var" = input$t4_y_var,
@@ -1479,21 +1529,6 @@ observeEvent(input$t4_analysis_compare_sample_submit, {
 ```{r Compare estimates based on respondent data before and after weighting adjustments}
 # Using Shinyjs to enable/disable for fields
 useShinyjs(rmd = T)
-
-#nonrespondent_census_list <- reactive({list(input$data_collection_method, input$eligible_nonrespondents, input$unknown_ineligible, input$analysis_adjust_weights)})
-observeEvent({input$data_collection_method; input$eligible_nonrespondents; input$unknown_ineligible}, {
-  if (input$data_collection_method == "Attempted Census") {
-    if (input$eligible_nonrespondents != "does_not_apply_2") {
-      global_values$is_census_data_with_nonrespondents <- TRUE  
-    } else if (input$unknown_ineligible != "does_not_apply_4") {
-      global_values$is_census_data_with_nonrespondents <- TRUE 
-    } else {
-      global_values$is_census_data_with_nonrespondents <- FALSE
-    }
-  } else {
-    global_values$is_census_data_with_nonrespondents <- FALSE
-  }
-}, ignoreInit = TRUE)
 
 observeEvent(input$analysis_adjust_weights, {
   global_values$last_analysis_clicked <- "analysis_adjust_weights"
@@ -1681,7 +1716,7 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
     } else if (input$t5_replicate_weight_method == "Jackknife (JKn or JK1)") {
       orig_rep_design <- as.svrepdesign(
         design = global_values$survey_design,
-        type = ifelse(isTRUE(global_values$survey_design$has.strata), "JKn", "JK1")
+        type = "auto"
       )
     }
 
@@ -1999,6 +2034,10 @@ observeEvent(input$t7_outcome_variable, {
       pull(input$t7_outcome_variable) %>%
       unique()
     
+    unique_outcomes_to_predict <- unique_outcomes_to_predict[
+      !is.na(unique_outcomes_to_predict)
+    ]
+    
     updateSelectizeInput(
       inputId = "t7_outcome_to_predict",
       choices = unique_outcomes_to_predict
@@ -2035,7 +2074,11 @@ observeEvent(input$analysis_aux_predictive_submit, {
     )
     survey_design <- subset(
       survey_design,
-      get(input$response_eligibility_variable) == input$eligible_respondents
+      survey_design[['variables']][["analysis_response_eligibility_variable"]] == input$eligible_respondents
+    )
+    survey_design <- subset(
+      survey_design,
+      !is.na(get(input$t7_outcome_variable))
     )
     
     selection_controls <- list(
@@ -2216,20 +2259,39 @@ observeEvent(input$analysis_across_subgroups_submit, {
   )
   
   chisq_formula <- stats::reformulate(termlabels = c(outcome_variable, grouping_variable))
-  htest_obj <- survey::svychisq(design = subsetted_survey_design, 
-                                formula = chisq_formula,
-                                statistic = "F")
+  
+  htest_obj <- tryCatch(
+    survey::svychisq(
+      design = subsetted_survey_design, 
+      formula =  chisq_formula,
+      statistic = "F"
+    ),
+    error = function(e) {list(
+      "statistic" = NA,
+      "p.value" = NA,
+      "parameter" = c("ndf" = NA, "ddf" = NA)
+    )}
+  )
+  
   result_df <- data.frame(statistic = htest_obj[["statistic"]], 
                           ndf = htest_obj[["parameter"]][["ndf"]], ddf = htest_obj[["parameter"]][["ddf"]], 
                           p_value = htest_obj[["p.value"]],
                           test_method = "Rao-Scott Chi-Square test (second-order adjustment)")
   rownames(result_df) <- NULL
   
-  p_value_text <- sprintf(
-    "The test of whether the survey outcome, %s, differs among subgroups defined by %s has a p-value of %s, based on a Chi-squared test of independence.",
-    outcome_variable, grouping_variable,
-    format.pval(result_df$p_value, eps = 0.001)
-  )
+  if (!is.na(result_df$p_value)) {
+    p_value_text <- sprintf(
+      "The test of whether the survey outcome, %s, differs among subgroups defined by %s has a p-value of %s, based on a Chi-squared test of independence.",
+      outcome_variable, grouping_variable,
+      format.pval(result_df$p_value, eps = 0.001)
+    )
+  } else {
+    p_value_text <- paste0(
+      "A Chi-squared test of independence could not be conducted",
+      " due to perfect correlation between categories of the survey outcome and the grouping variable.",
+      " Consider updating the grouping variable to use broader categories."
+    )
+  }
 
   
   param_list <<- list(
@@ -2394,7 +2456,7 @@ observeEvent(input$save_report_xlsx, {
               output_table[,z] <- round(output_table[,z], digits = routine_dictionary$precision[which(names(output_table)[z] == routine_dictionary$column_name[routine_dictionary$routine_name == analysis_store[[i]][[j]][["routine"]]])])
             }
             if (names(output_table)[z] %in% routine_dictionary$column_name) {
-              if (routine_dictionary$is_percentage[which(names(output_table)[z] == routine_dictionary$column_name)] == TRUE){
+              if (routine_dictionary$is_percentage[which(names(output_table)[z] == routine_dictionary$column_name)] == "Yes"){
                 numFmt <- "0."
                 for(x in 1:(routine_dictionary$precision[which(names(output_table)[z] == routine_dictionary$column_name[routine_dictionary$routine_name ==analysis_store[[i]][[j]][["routine"]]])]-2)){
                   numFmt <- paste0(numFmt, "0")
@@ -2422,8 +2484,8 @@ observeEvent(input$save_report_xlsx, {
           writeFormula(excel_book, "Table of Contents",
   x = paste0('=HYPERLINK("#',sheet_name,'!A1", "',analysis_store[[i]][[j]][["title"]],'")'), startRow = table_index+1, startCol = 3)
           table_index <- table_index + 1
-          report_index <- report_index + 1
         }
+        report_index <- report_index + 1
       }
     }
   }

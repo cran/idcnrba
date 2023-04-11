@@ -160,3 +160,13 @@ t_input_vars <- t_input_vars[which(t_input_vars$type == as.integer(type)),]
 test_that("t9_CSV_TEST", {
   expect_true(type == 9)
 })
+
+# overall CSV checks
+test_that("Every value of `is_percentage = 'Maybe'` has a determiner column", {
+  n_missing_percent_determiner <- output_table_dictionary |>
+    subset(tolower(is_percentage) == "maybe") |>
+    subset(is.na(percent_determiner)) |>
+    nrow()
+  expect_lt(object = n_missing_percent_determiner,
+            expected = 1)
+})
