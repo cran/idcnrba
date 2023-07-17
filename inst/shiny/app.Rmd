@@ -16,7 +16,8 @@ library(shinyjs)
 library(openxlsx)
 enableBookmarking("server")
 options(shiny.maxRequestSize=30*1024^2)
-
+options(survey.lonely.psu = 'adjust')
+options(survey.adjust.domain.lonely = TRUE)
 ```
 
 ```{r global, include=FALSE}
@@ -26,6 +27,8 @@ routines <- read.csv(system.file("routines.csv", package = "idcnrba"))
 parameters <- read.csv(system.file("parameters.csv", package = "idcnrba"))
 parameters_html_crosswalk <- read.csv(system.file("parameters_html_crosswalk.csv", package = "idcnrba"))
 output_table_dictionary <- read.csv(system.file("output_table_dictionary.csv", package = "idcnrba"))
+errors <- read.csv(system.file("errors.csv", package = "idcnrba"))
+setup_module_checks <- read.csv(system.file("setup_module_checks.csv", package = "idcnrba"))
 
 # removes excess spaces at the ends and beginnings of strings in csv's
 types <- types %>% mutate_if(is.character, function(x) trimws(x))
@@ -33,12 +36,16 @@ routines <- routines %>% mutate_if(is.character, function(x) trimws(x))
 parameters <- parameters %>% mutate_if(is.character, function(x) trimws(x))
 parameters_html_crosswalk <- parameters_html_crosswalk %>% mutate_if(is.character, function(x) trimws(x))
 output_table_dictionary <- output_table_dictionary %>% mutate_if(is.character, function(x) trimws(x))
+errors <- errors %>% mutate_if(is.character, function(x) trimws(x))
+setup_module_checks <- setup_module_checks %>% mutate_if(is.character, function(x) trimws(x)) 
 
 analysis_store <<- list(`1` = list(), `2` = list(), `3` = list(), `4` = list(), `5` = list(), `6` = list(), `7` = list(), `8` = list(), `9` = list())
 report_input_counter <<- 1
 previous_report_input_counter <<- report_input_counter
 
 global_values <- reactiveValues()
+routine_name <<- NA
+rotuine_label <<- NA
 ```
 
 ```{r, include=FALSE}
@@ -161,6 +168,11 @@ get_survey_design_object <- function(data, input, secondary_raked = FALSE) {
       )      
     }
   }
+
+  if (input$sampling_weight_variable == "[No Weights]") {
+    survey_design$prob <- rep(1, times = nrow(data))
+  }
+
   return(survey_design)
 }
 
@@ -199,9 +211,20 @@ render_analysis_output <- function(output_table) {
   
   most_recent_output_table <<- output_table
   renderUI({
-    if("error" %in% class(output_table)) {
+    if("error" %in% class(output_table) | length(output_table) == 0) {
+      error <- ""
+      if (is.na(routine_name)) {
+        error <- "Variable `routine_name` not set. Please see detailed R message below."
+      } else {
+        for (iterate_error in errors$errors[errors$routine_name == routine_name]) {
+          error <- paste0(iterate_error, "<br><br>", error)
+        }
+      }
       modal_out <- modalDialog(
         h3("Error in analysis:", style = "font-color: red;"), 
+        tags$p("Please check that the Setup module and the specific analysis options have been configured correctly. Below are some checks that may identify the source of the problem.\n", style = "font-weight: bold;"),
+        HTML(paste0(error, "\n")),
+        h3("Below is a more detailed error message from R", style = "font-color: red;"),
         tags$blockquote(output_table$message)
       )
     } else {
@@ -223,7 +246,7 @@ render_analysis_output <- function(output_table) {
       for(i in 1:ncol(output_table)){
         # only looks at output_dictionary with same routine name
         routine_dictionary <- output_table_dictionary[output_table_dictionary$routine_name == routine_name,]
-        #browser()
+        
         if (names(output_table)[i] %in% routine_dictionary$column_name){
           # if str is double then it is rounded to value in dictionary
           which_routine_dictionary_row <- which(routine_dictionary$column_name[routine_dictionary$routine_name == routine_name] == names(output_table)[i])
@@ -275,7 +298,7 @@ render_analysis_output <- function(output_table) {
               scrollCollapse = TRUE,
               scroller = TRUE
             )
-          )         
+          ) %>% DT::formatStyle(columns = column_dictionary[column_dictionary$is_emphasized == "Yes" & column_dictionary$column_name %in% colnames(output_table),"column_name"], fontWeight = 'bold')         
         }),
         HTML(ifelse(is.null(footer_value), "", footer_value)),
         conditionalPanel(
@@ -397,7 +420,7 @@ Setup
 Column
 -------------------------------------
    
-### Step 1:  Import Data {.import-data}
+### **Step 1:  Import Data** {.import-data}
 
 ```{r}
 
@@ -418,19 +441,32 @@ global_values$file_metadata <- data.frame(
   check.names = FALSE
 )
 
+global_values$repaired_names <- list()
+
 observeEvent(input$input_file, {
   
   for(i in 1:nrow(input$input_file)) {
     base_filename <- basename(input$input_file[i, "name"])
     full_filename <- input$input_file[i, "datapath"]
     if(grepl("\\.csv$", base_filename)) {
-      new_data <- readr::read_csv(full_filename)
+      new_data <- readr::read_csv(full_filename, name_repair = "minimal")
     } else if(grepl("\\.xlsx$", base_filename)) {
-      new_data <- openxlsx::read.xlsx(full_filename)
+      new_data <- openxlsx::read.xlsx(full_filename, check.names = FALSE)
     } else if(grepl("\\.sas7bdat$", base_filename)) {
-      new_data <- haven::read_sas(full_filename)
+      new_data <- haven::read_sas(full_filename, .name_repair = "minimal")
     } else if(grepl("\\.sav$", base_filename)) {
-      new_data <- haven::read_sav(full_filename)
+      new_data <- haven::read_sav(full_filename, .name_repair = "minimal")
+    }
+    column_names <- names(new_data)
+    column_names_repaired <- make.names(column_names)
+    for(column_idx in 1:length(column_names)) {
+      column_name <- column_names[column_idx]
+      r_allowed_name <- column_names_repaired[column_idx]
+      if(column_name != r_allowed_name) {
+        global_values$repaired_names[[base_filename]][[r_allowed_name]]$repaired_from = column_name
+        global_values$repaired_names[[base_filename]][[r_allowed_name]]$repaired_to = r_allowed_name
+        names(new_data)[names(new_data) == column_name] <- r_allowed_name
+      }
     }
     
     global_values[[base_filename]] <- new_data
@@ -472,14 +508,6 @@ observeEvent(input$input_file, {
 DT::DTOutput("output_file_display")
 #click_input <- reactive({list(input$output_files_df_cell_clicked, input$input_file)})
 observeEvent({input$output_files_df_cell_clicked; input$input_file}, {
-  # if((length(input$output_files_df_cell_clicked) == 0) & !(is.null(str(input$output_files_df_cell_clicked)))) {
-  #   cat(str(input$output_files_df_cell_clicked))
-  #   clicked_row <- nrow(global_values$file_metadata)
-  # } else if(!(is.null(input$output_files_df_cell_clicked))){
-  #   clicked_row <- input$output_files_df_cell_clicked$row
-  # } else {
-  #   return(NULL)
-  # }
   
   if(length(input$output_files_df_cell_clicked) == 0){
     if(nrow(global_values$file_metadata) <= 0){
@@ -500,7 +528,7 @@ observeEvent({input$output_files_df_cell_clicked; input$input_file}, {
     	escape = TRUE,
     	style = "default",
     	options = list(
-    		dom = "tp",
+    		dom = "t",
     		pagingType = "simple",
     		headerCallback = htmlwidgets::JS(
       		"function(thead, data, start, end, display) {
@@ -518,7 +546,7 @@ Column
 -------------------------------------
 
 
-### Step 2: Identify Data Collection Method {.identify-data-collection-method}
+### **Step 2: Identify Data Collection Method** {.identify-data-collection-method}
     
 ```{r}
 # Using Shinyjs to enable/disable for fields
@@ -544,7 +572,7 @@ disabled(selectizeInput(
 ))
 
 div(id = "options-label-1",
-h5("For each category of response and eligibility status, select the appropriate value:", style = 
+h5("For each category of response and eligibility status, select the appropriate value. These fields cannot be blank.", style = 
                     "font-family: 'Calibri', sans-serif;"))
 
 fluidRow(
@@ -593,7 +621,7 @@ hr()
 
 disabled(selectizeInput(
     inputId = "population_size_variables",
-    label = "Select the variables, if any, giving the population size. Use one variable for each stage of sampling.",
+    label = "Select the variables in your dataset, if any, giving the population size. Use one variable for each stage of sampling.",
     multiple = TRUE,
     choices = NULL,
     width = "95%"
@@ -673,7 +701,7 @@ div(
   hr(),
   disabled(selectizeInput(
     inputId = "sampling_weight_variable",
-    label = "Select the variable in your dataset that indicates the sampling weight for each case.",
+    label = "Select the variable in your dataset, if any, that indicates the sampling weight for each case.",
     choices = NULL,
     multiple = FALSE,
     width = "95%"
@@ -708,14 +736,58 @@ div(
   )
 )
 
-#hr()
-tags$a(
-  "Proceed to Analysis ",
-  icon("caret-right"),
-  href = "#section-analysis",
-  class="btn btn-default btn-sm",
-  role="button"
+actionButton("proceed_to_analysis",
+  label = "Proceed to Analysis",
+  class="btn btn-default btn-sm"
 )
+
+observeEvent(input$proceed_to_analysis, {
+  proceed_errors <<- ""
+  # counts errors and determines whether or not error checks renders modal
+  error_counter <<- 0
+  for (i in 1:nrow(setup_module_checks[setup_module_checks$is_enabled == 1,])) {
+    result <- regmatches(setup_module_checks$error_message[i], gregexpr("\\[\\$(.*?)\\]", setup_module_checks$error_message[i]))
+    result <- unique(result[[1]])
+    # setup check 13 doesn't have a variable name and I'm out of ideas (see error function in tryCatch for more details)
+    # result <- ifelse(setup_module_checks$query_id[i] != 13, gsub("\\[\\$|\\]", "", result), "ssu_cluster_variables")
+    if (setup_module_checks$query_id[i] != 13){
+      result <- gsub("\\[\\$|\\]", "", result)
+    } else{
+      result <- "ssu_cluster_variables"
+    }
+    tryCatch({
+      # if the query returns true, then there is an error on the setup page
+      if (eval(parse(text = setup_module_checks$setup_query_code[i]))) {
+        # if result isn't an empty string and you can evaluate input$[result] replace the error message variable result was pulled from with the input value. This is here because some error messages (checks 1-6) don't have variables to pull from
+        if (!any(is.na(result)) & length(result) > 0){
+          for (j in 1:length(result)) {
+            setup_module_checks$error_message[i] <<- gsub(paste0("\\[\\$",result[j],"\\]"), paste(eval(parse(text = paste0("input$",result[j]))), collapse = ", "), setup_module_checks$error_message[i])
+          }
+        }
+        proceed_errors <<- paste0(proceed_errors, "- ", setup_module_checks$error_message[i], "<br><br>")
+        error_counter <<- error_counter + 1
+      }
+    }, error = function(err){
+      if (length(result) > 0) {
+        for (j in 1:length(result)) {
+          setup_module_checks$error_message[i] <<- gsub(paste0("\\[\\$",result[j],"\\]"), "NULL", setup_module_checks$error_message[i])
+        }
+      }
+      # check 13 is looking to see if psu_cluster_variables is set or not. Since the input isn't set, the query returns an error. Since we don't want to write error messages for every variable that isn't set, I've hard coded this until a better solution is found
+      proceed_errors <<- ifelse((setup_module_checks$query_id[i] == 13 & isTruthy(input$ssu_cluster_variables)), paste0(proceed_errors, "- ", setup_module_checks$error_message[i], "<br><br>"), proceed_errors)
+      error_counter <<- error_counter + 1
+    })
+  }
+  cat(paste0("\nerrors: ", proceed_errors))
+  if (error_counter > 0 & proceed_errors != "") {
+    output$setup_errors <- showModal(renderUI(modalDialog(
+      HTML(paste0("There are one or more errors in the options selected in the Setup module. <br><br>",proceed_errors)))
+  ))
+    shinyjs::runjs(paste0('window.location.href = "#section-setup";'))
+  } else {
+    shinyjs::runjs(paste0('window.location.href = "#section-analysis";'))
+  }
+}, ignoreInit = TRUE)
 
 # Update inputs that use variable names based on selected data file
 #click_input <- reactive({list(input$output_files_df_cell_clicked, input$input_file)})
@@ -772,7 +844,7 @@ observeEvent(input$response_eligibility_variable, {
   }
   
   variable_values <- unique(global_values$selected_data[[input$response_eligibility_variable]])
-  
+  cat(length(variable_values))
   # Note each DOES NOT APPLY value has to be a unique value for response rate calculations
   updateSelectizeInput(
     inputId = "eligible_respondents",
@@ -872,20 +944,16 @@ observeEvent({input$data_collection_method; input$eligible_nonrespondents; input
   if (input$data_collection_method == "Attempted Census") {
     if (input$eligible_nonrespondents != "does_not_apply_2") {
       global_values$is_census_data_with_nonrespondents <- TRUE
-      cat("HIT1\n")
       hide("population_size_variables")
     } else if (input$unknown_ineligible != "does_not_apply_4") {
       global_values$is_census_data_with_nonrespondents <- TRUE
-      cat("HIT2\n")
       hide("population_size_variables")
     } else {
       global_values$is_census_data_with_nonrespondents <- FALSE
-      cat("HIT3\n")
       show("population_size_variables")
     }
   } else {
     global_values$is_census_data_with_nonrespondents <- FALSE
-    cat("HIT4\n")
     show("population_size_variables")
   }
 }, ignoreInit = TRUE)
@@ -893,7 +961,7 @@ observeEvent({input$data_collection_method; input$eligible_nonrespondents; input
 ```
 
 
-Analysis
+Analysis {.analysis-tab}
 =====================================
 
 Column
@@ -984,7 +1052,8 @@ observeEvent(input$analysis_response_rates, {
             inputId = "analysis_response_rates_group",
             label = "Choose grouping variable(s):",
             multiple = TRUE,
-            choices = colnames(global_values$selected_data)
+            choices = colnames(global_values$selected_data),
+            options = list(placeholder = '[None]')
           )
         ),
         column(width = 6,
@@ -1043,9 +1112,9 @@ observeEvent(input$elig_method , {
 })
 
 observeEvent(input$analysis_response_rates_submit, {
-  
+  routine_name <<- "calculate_response_rates"
+  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   output_table <- tryCatch({
-      
     if (input$sampling_weight_variable == "[No Weights]") {
       sampling_weight_variable_input <- NULL 
     } else {
@@ -1077,13 +1146,10 @@ observeEvent(input$analysis_response_rates_submit, {
       "e" = as_numeric_input(input$e_specified)
     )
     footer_value <<- NULL
-    routine_name <<- "calculate_response_rates"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
     do.call(calculate_response_rates, param_list)
   }, error = function(e) {
     return(e)
   })
-  
   output$analysis_output <- render_analysis_output(output_table)
 })
 ```
@@ -1101,7 +1167,8 @@ observeEvent(input$analysis_subpop_differ, {
         inputId = "chisq_aux_variables",
         label = "Choose grouping variable(s):",
         multiple = TRUE,
-        choices = colnames(global_values$selected_data)
+        choices = colnames(global_values$selected_data),
+        options = list(placeholder = '[None]')
       ),
       actionButton("analysis_subpop_differ_submit", "Submit")
     )
@@ -1110,7 +1177,8 @@ observeEvent(input$analysis_subpop_differ, {
 
 
 observeEvent(input$analysis_subpop_differ_submit, {
-  
+  routine_name <<- "chisq_test_ind_response"
+  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   output_table <- tryCatch({
  
     survey_design <- get_survey_design_object(
@@ -1133,8 +1201,6 @@ observeEvent(input$analysis_subpop_differ_submit, {
       "aux_vars" = input$chisq_aux_variables)
     
     footer_value <<- NULL
-    routine_name <<- "chisq_test_ind_response"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
     do.call(chisq_test_ind_response, param_list)
     
   }, error = function(e) {
@@ -1160,7 +1226,10 @@ observeEvent(input$analysis_compare_external, {
         label = "Choose a grouping variable:",
         multiple = FALSE,
         choices = colnames(global_values$selected_data),
-        width = "95%"
+        width = "95%",
+        options = list(
+          placeholder = '[None]',
+          onInitialize = I('function() { this.setValue(""); }'))
       ),
       fluidRow(
         column(width = 7,
@@ -1169,17 +1238,6 @@ observeEvent(input$analysis_compare_external, {
             label = "Is the grouping variable categorical?",
             choices = c("Yes", "No"),
             selected = "No",
-            width = "95%",
-            inline = TRUE
-          )
-        )),
-      fluidRow(
-        column(width = 5,
-          radioButtons(
-            input = "t3_t_or_chisq_test",
-            label = "Choose the test:",
-            choices = c("t test", "Chi-squared test"),
-            selected = "t test",
             width = "95%",
             inline = TRUE
           )
@@ -1193,6 +1251,17 @@ observeEvent(input$analysis_compare_external, {
             width = "95%",
             inline = TRUE
       ),
+      fluidRow(
+        column(width = 5,
+          radioButtons(
+            input = "t3_t_or_chisq_test",
+            label = "Choose the test:",
+            choices = c("t test", "Chi-squared test"),
+            selected = "t test",
+            width = "95%",
+            inline = TRUE
+          )
+        )),
       numericInput(
         inputId = "t3_null_difference",
         label = "Enter the value of the hypothesized difference between the estimate and the benchmark:",
@@ -1365,6 +1434,8 @@ observeEvent(input$analysis_compare_external_submit, {
     )
     
     if (input$t3_t_or_chisq_test == "t test") {
+      routine_name <<- "t_test_vs_external_estimate"
+      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
       param_list <<- list(
       "survey_design" = resp_design, 
       "y_var" = input$t3_y_var,
@@ -1375,10 +1446,10 @@ observeEvent(input$analysis_compare_external_submit, {
       "alternative" = input$t3_alternative,
       "degrees_of_freedom" = degrees_of_freedom)
       footer_value <<- NULL
-      routine_name <<- "t_test_vs_external_estimate"
-      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
       do.call(t_test_vs_external_estimate, param_list)
     } else {
+      routine_name <<- "chisq_test_vs_external_estimate"
+      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
       param_list <<- list(
         "survey_design" = resp_design,
         "y_var" = input$t3_y_var,
@@ -1386,8 +1457,6 @@ observeEvent(input$analysis_compare_external_submit, {
         "na.rm" = switch(input$t3_drop_missing_y_var, "Yes" = TRUE, "No" = FALSE)
       )
       footer_value <<- NULL
-      routine_name <<- "chisq_test_vs_external_estimate"
-      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
       do.call(chisq_test_vs_external_estimate, param_list)
     }
         
@@ -1414,7 +1483,10 @@ observeEvent(input$analysis_compare_sample, {
         label = "Choose one or more grouping variable(s):",
         multiple = TRUE,
         choices = colnames(global_values$selected_data),
-        width = "95%"
+        width = "95%",
+        options = list(
+          placeholder = '[None]',
+          onInitialize = I('function() { this.setValue(""); }'))
       ),
       fluidRow(
         column(width = 10,
@@ -1489,19 +1561,8 @@ observeEvent(input$t4_analysis_compare_sample_submit, {
     
     
     if (t4_comparison == "Respondents vs. All sampled cases (regardless of response or eligibility status)") {
-      param_list <<- list(
-      "survey_design" = survey_design,
-      "y_var" = input$t4_y_var,
-      "status" = "analysis_response_eligibility_variable", 
-      "status_codes" = status_codes, 
-      "null_difference" = input$t4_null_difference,
-      "alternative" = input$t4_alternative,
-      "degrees_of_freedom" = degrees_of_freedom)
-      footer_value <<- NULL
       routine_name <<- "t_test_resp_vs_full"
       routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-      do.call(t_test_resp_vs_full, param_list)
-    } else {
       param_list <<- list(
       "survey_design" = survey_design,
       "y_var" = input$t4_y_var,
@@ -1511,8 +1572,19 @@ observeEvent(input$t4_analysis_compare_sample_submit, {
       "alternative" = input$t4_alternative,
       "degrees_of_freedom" = degrees_of_freedom)
       footer_value <<- NULL
+      do.call(t_test_resp_vs_full, param_list)
+    } else {
       routine_name <<- "t_test_resp_vs_elig"
       routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+      param_list <<- list(
+      "survey_design" = survey_design,
+      "y_var" = input$t4_y_var,
+      "status" = "analysis_response_eligibility_variable", 
+      "status_codes" = status_codes, 
+      "null_difference" = input$t4_null_difference,
+      "alternative" = input$t4_alternative,
+      "degrees_of_freedom" = degrees_of_freedom)
+      footer_value <<- NULL
       do.call(t_test_resp_vs_elig, param_list)
     }
 
@@ -1649,7 +1721,9 @@ observeEvent({input$analysis_adjust_weights; global_values$is_census_data_with_n
               label = "Choose grouping variables to use for raking",
               multiple = TRUE,
               choices = NULL,
-              width = "95%"
+              width = "95%",
+              options = list(
+                placeholder = '[None]')
             )),
           {
             if (global_values$is_census_data_with_nonrespondents){
@@ -1661,7 +1735,9 @@ observeEvent({input$analysis_adjust_weights; global_values$is_census_data_with_n
                   label = "Choose corresponding variables with values of benchmarks",
                   multiple = TRUE,
                   choices = NULL,
-                  width = "95%")
+                  width = "95%",
+                  options = list(
+                    placeholder = '[None]'))
               )
             }
           },
@@ -1671,7 +1747,9 @@ observeEvent({input$analysis_adjust_weights; global_values$is_census_data_with_n
             label = "Choose variables whose means should be compared before and after raking",
             multiple = TRUE,
             choices = NULL,
-            width = "95%"
+            width = "95%",
+            options = list(
+              placeholder = '[None]')
           ),
           #hr(),
           actionButton("t5_analysis_adjust_weights_submit", "Submit")
@@ -1702,7 +1780,8 @@ observeEvent(input$t5_replicate_weight_method, {
 })
 
 observeEvent(input$t5_analysis_adjust_weights_submit, {
-  
+  routine_name <<- "t_test_of_weight_adjustment"
+  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
   output_table <- tryCatch({
     
@@ -1787,11 +1866,11 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
       "updated_design" = raked_resp_rep_design, 
       "y_vars" = input$t5_wt_adj_comparison_vars
     )
-    footer_value <<- NULL
-    routine_name <<- "t_test_of_weight_adjustment"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-    do.call(t_test_of_weight_adjustment, param_list)
-    
+    footer_value <<- sprintf(
+      "The following variables were used to weight data from respondents: %s",
+      paste(input$t5_raking_group_vars, collapse = ", ")
+    )
+ do.call(t_test_of_weight_adjustment, param_list)
   }, error = function(e) {
     return(e)
   })
@@ -1863,7 +1942,7 @@ observeEvent(input$analysis_predict_response, {
         ),
         numericInput(
           inputId = "t6_max_iterations",
-          label = "Maximum number of iterations for stewise algorithm",
+          label = "Maximum number of iterations for stepwise algorithm",
           value = 100,
           step = 1
         ) 
@@ -1883,7 +1962,8 @@ observeEvent(input$t6_model_selection, {
 })
 
 observeEvent(input$analysis_predict_response_submit, {
-  
+  routine_name <<- "predict_response_status_via_glm"
+  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
   output_table <- tryCatch({
  
@@ -1914,11 +1994,29 @@ observeEvent(input$analysis_predict_response_submit, {
       "model_selection" = input$t6_model_selection,
       "selection_controls" = selection_controls
     )
-    footer_value <<- NULL
-    routine_name <<- "predict_response_status_via_glm"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-    do.call(predict_response_status_via_glm, param_list)
-        
+    
+    result <- do.call(predict_response_status_via_glm, param_list)
+    
+    # If there are categorical predictors, produce a text string
+    # describing the reference levels in the regression
+    ref_levels_table <- attr(result, 'reference_levels')
+    if (!is.null(ref_levels_table)) {
+      ref_levels_string <- sprintf(
+        '%s "%s"',
+        ref_levels_table[['variable']],
+        ref_levels_table[['variable_category']]
+      ) |> paste(collapse = "; ")
+      ref_levels_string <- paste0(
+        "For categorical predictor variables, the following categories were used as reference levels for the regression: ", 
+        " ", ref_levels_string
+      )
+    } else {
+      ref_levels_string <- NULL
+    }
+    footer_value <<- ref_levels_string
+
+    # Return the result
+    result        
   }, error = function(e) {
     return(e)
   })
@@ -1963,11 +2061,15 @@ observeEvent(input$analysis_aux_predictive, {
       ),
       fluidRow(
         column(width = 6,
-          selectInput(
+          selectizeInput(
             inputId = "t7_outcome_variable",
             label = "Select outcome variable.",
+            multiple = FALSE,
             choices = colnames(global_values$selected_data),
-            width = "95%"
+            width = "95%",
+            options = list(
+              placeholder = '[None]',
+              onInitialize = I('function() { this.setValue(""); }'))
           ),    
         ),
         column(width = 6,
@@ -2016,7 +2118,7 @@ observeEvent(input$analysis_aux_predictive, {
         ),
         numericInput(
           inputId = "t7_max_iterations",
-          label = "Maximum number of iterations for stewise algorithm",
+          label = "Maximum number of iterations for stepwise algorithm",
           value = 100,
           step = 1
         ) 
@@ -2064,7 +2166,8 @@ observeEvent(input$t7_model_selection, {
 
 
 observeEvent(input$analysis_aux_predictive_submit, {
-  
+  routine_name <<- "predict_outcome_via_glm"
+  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
   output_table <- tryCatch({
  
@@ -2097,11 +2200,29 @@ observeEvent(input$analysis_aux_predictive_submit, {
       "model_selection" = input$t7_model_selection,
       "selection_controls" = selection_controls
     )
-    footer_value <<- NULL
-    routine_name <<- "predict_outcome_via_glm"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-    do.call(predict_outcome_via_glm, param_list)
-        
+    result <- do.call(predict_outcome_via_glm, param_list)
+    
+    # If there are categorical predictors, produce a text string
+    # describing the reference levels in the regression
+    ref_levels_table <- attr(result, 'reference_levels')
+    if (!is.null(ref_levels_table)) {
+      ref_levels_string <- sprintf(
+        '%s "%s"',
+        ref_levels_table[['variable']],
+        ref_levels_table[['variable_category']]
+      ) |> paste(collapse = "; ")
+      ref_levels_string <- paste0(
+        "For categorical predictor variables, the following categories were used as reference levels for the regression: ", 
+        " ", ref_levels_string
+      )
+    } else {
+      ref_levels_string <- NULL
+    }
+    footer_value <<- ref_levels_string
+    
+    # Return the result
+    result        
+    
   }, error = function(e) {
     return(e)
   })
@@ -2153,7 +2274,8 @@ observeEvent(input$analysis_cumulative_estimates, {
 })
 
 observeEvent(input$analysis_cumulative_estimates_submit, {
-  
+  routine_name <<- "get_cumulative_estimates"
+  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
   output_table <- tryCatch({
  
@@ -2174,8 +2296,6 @@ observeEvent(input$analysis_cumulative_estimates_submit, {
       "predictor_variable" = input$t8_predictor_variable
     )
     footer_value <<- NULL
-    routine_name <<- "get_cumulative_estimates"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
     do.call(get_cumulative_estimates, param_list)
         
   }, error = function(e) {
@@ -2202,13 +2322,19 @@ observeEvent(input$analysis_across_subgroups, {
         inputId = "t9_grouping_variable",
         label = "Choose grouping variable:",
         multiple = FALSE,
-        choices = colnames(global_values$selected_data)
+        choices = colnames(global_values$selected_data),
+        options = list(
+          placeholder = '[None]',
+          onInitialize = I('function() { this.setValue(""); }'))
       ),
       selectizeInput(
         inputId = "t9_outcome_variable",
         label = "Choose outcome variable:",
         multiple = FALSE,
-        choices = colnames(global_values$selected_data)
+        choices = colnames(global_values$selected_data),
+        options = list(
+          placeholder = '[None]',
+          onInitialize = I('function() { this.setValue(""); }'))
       ),
       actionButton("analysis_across_subgroups_submit", "Submit")
     )
@@ -2216,97 +2342,102 @@ observeEvent(input$analysis_across_subgroups, {
 })
 
 observeEvent(input$analysis_across_subgroups_submit, {
-
-  grouping_variable <- input$t9_grouping_variable
-  outcome_variable <- input$t9_outcome_variable
-    
-  # Create example survey design ----
-  survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
   
-  # Subset the survey design object to relevant data ----
-    survey_design <- survey_design |> srvyr::as_survey()
+  
+  output_table <- tryCatch({
+    routine_name <<- "analysis_across_subgroups"
+    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+    grouping_variable <- input$t9_grouping_variable
+    outcome_variable <- input$t9_outcome_variable
+      
+    # Create example survey design ----
+    survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
+      )
     
-    if (!is.null(grouping_variable) && (grouping_variable != "")) {
+    # Subset the survey design object to relevant data ----
+      survey_design <- survey_design |> srvyr::as_survey()
+      
+      if (!is.null(grouping_variable) && (grouping_variable != "")) {
+        subsetted_survey_design <- survey_design |>
+        srvyr::filter(!is.na(.data[[grouping_variable]]))
+      }
       subsetted_survey_design <- survey_design |>
-      srvyr::filter(!is.na(.data[[grouping_variable]]))
+        srvyr::filter(!is.na(.data[[outcome_variable]]))
+    
+      # Produce the desired output table ----
+      output_table <- subsetted_survey_design |>
+        srvyr::group_by(dplyr::across(dplyr::one_of(grouping_variable, outcome_variable))) |>
+        srvyr::summarize(
+          Percent = srvyr::survey_prop(vartype = "ci", proportion = TRUE, prop_method = "logit"),
+          Weighted_Count = srvyr::survey_total(vartype = NULL),
+          Unweighted_Count = srvyr::unweighted(n())
+        ) |>
+        ungroup() |>
+        dplyr::arrange(dplyr::across(dplyr::one_of(outcome_variable, grouping_variable))) |>
+        dplyr::rename_with(.fn = function(x) dplyr::case_when(
+          x == "Percent_low" ~ "Lower_95_CI",
+          x == "Percent_upp" ~ "Upper_95_CI",
+          TRUE ~ x
+    ))
+    status_codes <- c(
+      "ER" = input$eligible_respondents,
+      "EN" = input$eligible_nonrespondents,
+      "IE" = input$known_ineligible,
+      "UE" = global_values$analysis_ue_category
+    )
+    
+    chisq_formula <- stats::reformulate(termlabels = c(outcome_variable, grouping_variable))
+    
+    htest_obj <- tryCatch(
+      survey::svychisq(
+        design = subsetted_survey_design, 
+        formula =  chisq_formula,
+        statistic = "F"
+      ),
+      error = function(e) {list(
+        "statistic" = NA,
+        "p.value" = NA,
+        "parameter" = c("ndf" = NA, "ddf" = NA)
+      )}
+    )
+    
+    result_df <- data.frame(statistic = htest_obj[["statistic"]], 
+                            ndf = htest_obj[["parameter"]][["ndf"]], ddf = htest_obj[["parameter"]][["ddf"]], 
+                            p_value = htest_obj[["p.value"]],
+                            test_method = "Rao-Scott Chi-Square test (second-order adjustment)")
+    rownames(result_df) <- NULL
+    
+    if (!is.na(result_df$p_value)) {
+      p_value_text <- sprintf(
+        "The test of whether the survey outcome, %s, differs among subgroups defined by %s has a p-value of %s, based on a Chi-squared test of independence.",
+        outcome_variable, grouping_variable,
+        format.pval(result_df$p_value, eps = 0.001)
+      )
+    } else {
+      p_value_text <- paste0(
+        "A Chi-squared test of independence could not be conducted",
+        " due to perfect correlation between categories of the survey outcome and the grouping variable.",
+        " Consider updating the grouping variable to use broader categories."
+      )
     }
-    subsetted_survey_design <- survey_design |>
-      srvyr::filter(!is.na(.data[[outcome_variable]]))
   
-    # Produce the desired output table ----
-    output_table <- subsetted_survey_design |>
-      srvyr::group_by(dplyr::across(dplyr::one_of(grouping_variable, outcome_variable))) |>
-      srvyr::summarize(
-        Percent = srvyr::survey_prop(vartype = "ci", proportion = TRUE, prop_method = "logit"),
-        Weighted_Count = srvyr::survey_total(vartype = NULL),
-        Unweighted_Count = srvyr::unweighted(n())
-      ) |>
-      ungroup() |>
-      dplyr::arrange(dplyr::across(dplyr::one_of(outcome_variable, grouping_variable))) |>
-      dplyr::rename_with(.fn = function(x) dplyr::case_when(
-        x == "Percent_low" ~ "Lower_95_CI",
-        x == "Percent_upp" ~ "Upper_95_CI",
-        TRUE ~ x
-  ))
-  status_codes <- c(
-    "ER" = input$eligible_respondents,
-    "EN" = input$eligible_nonrespondents,
-    "IE" = input$known_ineligible,
-    "UE" = global_values$analysis_ue_category
-  )
-  
-  chisq_formula <- stats::reformulate(termlabels = c(outcome_variable, grouping_variable))
-  
-  htest_obj <- tryCatch(
-    survey::svychisq(
-      design = subsetted_survey_design, 
-      formula =  chisq_formula,
-      statistic = "F"
-    ),
-    error = function(e) {list(
-      "statistic" = NA,
-      "p.value" = NA,
-      "parameter" = c("ndf" = NA, "ddf" = NA)
-    )}
-  )
-  
-  result_df <- data.frame(statistic = htest_obj[["statistic"]], 
-                          ndf = htest_obj[["parameter"]][["ndf"]], ddf = htest_obj[["parameter"]][["ddf"]], 
-                          p_value = htest_obj[["p.value"]],
-                          test_method = "Rao-Scott Chi-Square test (second-order adjustment)")
-  rownames(result_df) <- NULL
-  
-  if (!is.na(result_df$p_value)) {
-    p_value_text <- sprintf(
-      "The test of whether the survey outcome, %s, differs among subgroups defined by %s has a p-value of %s, based on a Chi-squared test of independence.",
-      outcome_variable, grouping_variable,
-      format.pval(result_df$p_value, eps = 0.001)
-    )
-  } else {
-    p_value_text <- paste0(
-      "A Chi-squared test of independence could not be conducted",
-      " due to perfect correlation between categories of the survey outcome and the grouping variable.",
-      " Consider updating the grouping variable to use broader categories."
-    )
-  }
-
-  
-  param_list <<- list(
-    "survey_design" = survey_design, 
-    "status" = "analysis_response_eligibility_variable", 
-    "status_codes" = status_codes, 
-    "aux_vars" = input$chisq_aux_variables,
-    "grouping_variable" = input$t9_grouping_variable,
-    "outcome_variable" = input$t9_outcome_variable
-    )
-  footer_value <<- p_value_text
-  routine_name <<- "analysis_across_subgroups"
-   
-  routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-  
+    
+    param_list <<- list(
+      "survey_design" = survey_design, 
+      "status" = "analysis_response_eligibility_variable", 
+      "status_codes" = status_codes, 
+      "aux_vars" = input$chisq_aux_variables,
+      "grouping_variable" = input$t9_grouping_variable,
+      "outcome_variable" = input$t9_outcome_variable
+      )
+    footer_value <<- p_value_text
+    
+    output_table
+  }, error = function(e) {
+    return(e)
+  })
   output$analysis_output <- render_analysis_output(output_table)
 })
 ```
@@ -2314,7 +2445,7 @@ observeEvent(input$analysis_across_subgroups_submit, {
 ```{r}
 div(
   uiOutput("analysis_config"),
-  uiOutput("analysis_output"),
+  uiOutput("analysis_output")
 )
 
 ```
@@ -2363,9 +2494,9 @@ get_report <- function(user_input = TRUE) {
           data_report[report_index, "time"] <- toString(analysis_store[[i]][[j]][["time"]])
           
           if (user_input == TRUE) {
-            # disabling textInput for now
-            #data_report[report_index, "title"] <- as.character(textInput(paste0("text_", (report_input_counter)), label = "", width = '70%', placeholder = analysis_store[[i]][[j]][["title"]]))
-            data_report[report_index, "title"] <- analysis_store[[i]][[j]][["title"]]
+            # enabling textInput
+            data_report[report_index, "title"] <- as.character(textInput(paste0("text_", (report_input_counter)), label = "", width = '70%', placeholder = analysis_store[[i]][[j]][["title"]]))
+            # data_report[report_index, "title"] <- analysis_store[[i]][[j]][["title"]]
             data_report[report_index, "export"] <- as.character(checkboxInput(paste0("cb_", (report_input_counter)), label = "", value = TRUE, width = '5%'))
           } else {
             data_report[report_index, "title"] <- analysis_store[[i]][[j]][["title"]]
@@ -2413,6 +2544,28 @@ render_data_report <- function(report_summary_table) {
   return(table)
 }
 
+observeEvent(input$active_tab, {
+  if (input$active_tab != 3) {
+    report_index <- 1
+    for (i in 1:length(analysis_store)) {
+      if (length(analysis_store[[i]]) > 0) {
+        cat(paste0("\n2: ", str(input$active_tab)))
+        for(j in 1:length(analysis_store[[i]])){
+          if (length(analysis_store[[i]][[j]]) > 0 && !is.null(analysis_store[[i]][[j]][["type"]])) {
+            if (isTruthy(input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]])) {
+              # change analysis_store title if title has been editted
+              if (input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]] != ''){
+                analysis_store[[i]][[j]][["title"]] <<- input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]]
+              }
+            }
+          }
+          report_index <- report_index + 1
+        }
+      }
+    }
+  }
+}, ignoreInit = TRUE)
+
 observeEvent(input$save_report_xlsx, {
   excel_book <- createWorkbook(creator = "Westat")
   addWorksheet(excel_book, "Table of Contents")
@@ -2435,9 +2588,9 @@ observeEvent(input$save_report_xlsx, {
           sheet_name <- toString(table_index)
           addWorksheet(excel_book, sheet_name)
           # change analysis_store title if title has been editted
-          # if (input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]] != ''){
-          #   analysis_store[[i]][[j]][["title"]] <<- input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]]
-          # }
+          if (input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]] != ''){
+            analysis_store[[i]][[j]][["title"]] <<- input[[paste0("text_", (report_index + (previous_report_input_counter - 1)))]]
+          }
           # add output table dictionary comments
           output_table <- analysis_store[[i]][[j]][["output"]]
           columns <- as.data.frame(colnames(output_table))
@@ -2458,11 +2611,16 @@ observeEvent(input$save_report_xlsx, {
             if (names(output_table)[z] %in% routine_dictionary$column_name) {
               if (routine_dictionary$is_percentage[which(names(output_table)[z] == routine_dictionary$column_name)] == "Yes"){
                 numFmt <- "0."
+                # loops over how many digits for numFmt
                 for(x in 1:(routine_dictionary$precision[which(names(output_table)[z] == routine_dictionary$column_name[routine_dictionary$routine_name ==analysis_store[[i]][[j]][["routine"]]])]-2)){
                   numFmt <- paste0(numFmt, "0")
                 }
                 numFmt <- paste0(numFmt, "%")
                 addStyle(excel_book, sheet_name, style=createStyle(numFmt = numFmt), cols=z, rows = 3:(nrow(output_table)+3))
+              }
+              # highlighting
+              if (routine_dictionary$is_emphasized[which(names(output_table)[z] == routine_dictionary$column_name)] == "Yes") {
+                addStyle(excel_book, sheet_name, style=createStyle(textDecoration = "bold"), cols=z, rows = 3:(nrow(output_table)+3))
               }
             }
           }
@@ -2478,9 +2636,23 @@ observeEvent(input$save_report_xlsx, {
           output_table <- output_table %>%
             rename(column_lookup)
           
+          # Write the content to the sheet: Title
           writeData(excel_book, sheet_name, x = analysis_store[[i]][[j]][["title"]], startRow = 1, startCol = 1)
-          writeData(excel_book, sheet_name, x = output_table, startRow = 3, withFilter = TRUE)
+          addStyle(
+            wb = excel_book, sheet = sheet_name, 
+            rows = 1, cols = seq_len(ncol(output_table)),
+            style = createStyle(
+              fontName = "Calibri", fontSize = 14, textDecoration = "bold",
+              fontColour = "white", fgFill = "#4F81BD",
+              borderStyle = "thin", border = c("Top", "Bottom"), borderColour = "black"
+            )
+          )
+          # Write the content to the sheet: Table
+          writeDataTable(excel_book, sheet_name, x = output_table, startRow = 3, withFilter = FALSE, tableStyle = "TableStyleMedium16")
+          # Write the content to the sheet: Footer
           writeData(excel_book, sheet_name, x = analysis_store[[i]][[j]][["footer_value"]], startRow = 5+nrow(output_table))
+          
+          # Add a row to the table of contents
           writeFormula(excel_book, "Table of Contents",
   x = paste0('=HYPERLINK("#',sheet_name,'!A1", "',analysis_store[[i]][[j]][["title"]],'")'), startRow = table_index+1, startCol = 3)
           table_index <- table_index + 1
@@ -2513,11 +2685,11 @@ uiOutput("select_row_output")
 
 
 
-Reference Guide {data-navmenu="Resources"}
+<external_link data-href="https://ideadata.org/resources/resource/2799/nonresponse-bias-analysis-application">NRBA App User's Guide</external_link> {data-navmenu="Resources"}
 =====================================
 
 
-<external_link data-href="https://ideadata.org/">IDEA Data Center</external_link> {data-navmenu="Resources"}
+<external_link data-href="https://ideadata.org/">IDC - IDEA Data Center</external_link> {data-navmenu="Resources"}
 =====================================
 
 

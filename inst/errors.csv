@@ -1,0 +1,31 @@
+﻿routine_name,routine_id,errors
+calculate_response_rates,1,"Check that each category for response status has not been left blank in the ""Setup"" module."
+calculate_response_rates,1,Check that the response status variable has no missing values.
+calculate_response_rates,1,"If a weight variable was specified in the ""Setup"" module, check that the weight variable has no missing or negative values."
+calculate_response_rates,1,"If you selected the ""specified"" option for estimating the eligibility rate, you must enter a single number between 0 and 1 for the option ""estimated eligibility rate."""
+chisq_test_ind_response,1,Check that you have selected at least one grouping variable.
+chisq_test_ind_response,1,"Check that every grouping variable has multiple individuals in each group (otherwise, some groups are too small for this analysis type)."
+predict_response_status_via_glm,1,Check that you have selected at least one predictor variable.
+predict_response_status_via_glm,1,Check that the list of numeric predictor variables and categorical predictor variables does not overlap.
+predict_response_status_via_glm,1,Check that your dataset includes both eligible respondents and eligible nonrespondents.
+t_test_resp_vs_full,1,Check that you have selected at least one grouping variable.
+t_test_resp_vs_elig,2,Check that you have selected at least one grouping variable.
+t_test_vs_external_estimate,1,Check that you have selected at least one grouping variable.
+t_test_vs_external_estimate,1,Check that none of the values for the benchmark variable have been left blank.
+chisq_test_vs_external_estimate,2,Check that you have selected at least one grouping variable.
+chisq_test_vs_external_estimate,2,Check that none of the values for the benchmark variable have been left blank.
+analysis_across_subgroups,1,Check that you have selected at least one grouping variable.
+analysis_across_subgroups,1,Check that you have selected at least one outcome variable.
+predict_outcome_via_glm,1,Check that you have selected at least one predictor variable.
+predict_outcome_via_glm,1,Check that you have selected at least one outcome variable.
+predict_outcome_via_glm,1,Check that the list of numeric predictor variables and categorical predictor variables does not overlap.
+predict_outcome_via_glm,1,Check that the outcome variable has not also been listed as a predictor variable.
+predict_outcome_via_glm,1,"If you indicated that the outcome variable is numeric, check that the variable does not contain any text or other non-numeric characters."
+predict_outcome_via_glm,1,"If you indicated that the outcome variable is a binary categorical variable, check that the variable only has two categories."
+get_cumulative_estimates,1,Check that none of the fields for this analysis type have been left blank.
+get_cumulative_estimates,1,"If you are analyzing a numeric outcome variable, check that the variable has no letters or other non-numeric characters."
+get_cumulative_estimates,1,Check that none of the eligible respondents have missing values for the level-of-effort variable.
+t_test_of_weight_adjustment,1,Check that none of the fields for this analysis type have been left blank.
+t_test_of_weight_adjustment,1,"If you have selected a variable that contains benchmark population counts corresponding to a grouping variable, check that neither variable has missing values."
+t_test_of_weight_adjustment,1,"If you have selected a variable that contains benchmark population counts corresponding to a grouping variable, check that each group has only one unique value for its population count."
+t_test_of_weight_adjustment,1,"Ensure that none of the groups has fewer than 10 eligible respondents. If a group has too few eligible respondents, you can update your data file to add a new variable that uses broader groupings. You can also select the jackknife"

@@ -236,3 +236,18 @@ a[href="#section-welcome"] {
 }
 
 
+/* https://gitlab.westat.com/Statistics/idcnrba/-/issues/105 */
+/* we have to overwrite DT variables because the libraries we depend on use !important and so the element rules cannot be overwritten */
+body {
+  --dt-row-selected: 246, 246, 246;
+  --dt-row-selected-text: 51, 51, 51;
+}
+
+
+/* https://gitlab.westat.com/Statistics/idcnrba/-/issues/96 */
+/* force dropdown menus at the bottom of the page to "drop up" - does not happen on its own because parent div does not have fixed height */
+#psu_cluster_variables + div > .selectize-dropdown,
+#ssu_cluster_variables + div > .selectize-dropdown {
+  bottom: 100% !important;
+  top: auto !important;
+}
