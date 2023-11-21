@@ -1,3 +1,15 @@
+# idcnrba 1.1.0
+
+* Added links to the IDC website and user guide.
+
+* For an attempted census, when the app creates replicate weights, it uses the random-groups jackknife method. This should drastically increase speed.
+
+* For the analysis type comparing estimates to external benchmark data, user-entered percentages must sum to 100.
+
+* The progress bar now appears for every analysis type in the app.
+
+* Informative error messages are shown for most analysis types when the user supplies a dataset with only respondents in it.
+
 # idcnrba 1.0.0
 
 * The minimum required version of the 'nrba' package is now 0.2.0.

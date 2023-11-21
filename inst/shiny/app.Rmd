@@ -294,7 +294,7 @@ render_analysis_output <- function(output_table) {
               dom = "t",
               ordering = FALSE,
               scrollX = TRUE,
-              scrollY = 250,
+              #scrollY = 250,
               scrollCollapse = TRUE,
               scroller = TRUE
             )
@@ -958,6 +958,16 @@ observeEvent({input$data_collection_method; input$eligible_nonrespondents; input
   }
 }, ignoreInit = TRUE)
 
+# set respondents_only value if both eligible nonrespondent and
+# unknown ineligible are both [Does Not Apply]
+observeEvent({input$eligible_nonrespondents; input$unknown_ineligible}, {
+  if (input$eligible_nonrespondents == "does_not_apply_2" & input$unknown_ineligible == "does_not_apply_4") {
+    global_values$respondents_only <- TRUE
+  } else {
+    global_values$respondents_only <- FALSE
+  }
+})
+
 ```
 
 
@@ -1114,41 +1124,61 @@ observeEvent(input$elig_method , {
 observeEvent(input$analysis_response_rates_submit, {
   routine_name <<- "calculate_response_rates"
   routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-  output_table <- tryCatch({
-    if (input$sampling_weight_variable == "[No Weights]") {
-      sampling_weight_variable_input <- NULL 
-    } else {
-      sampling_weight_variable_input <- input$sampling_weight_variable
-    }
-
-    if (input$elig_method == "CASRO subgroup (recommended)") {
-      elig_method_input <- "CASRO-subgroup" 
-    } else if (input$elig_method == "CASRO overall") {
-      elig_method_input <- "CASRO-overall"
-    } else {
-      elig_method_input <- input$elig_method
-    }
+  withProgress(message = "Running Analysis...", {
+    n = 1/3
+    output_table <- tryCatch({
+      
+      if (global_values$respondents_only & is.null(input$analysis_response_rates_group)) {
+        stop("Response rates by subgroup cannot be calculated since the dataset does not contain any eligible nonrespondents or cases with unknown eligibility.")
+      }
+      
+      if (global_values$respondents_only & input$data_collection_method == "Survey Sample") {
+        stop("Response rates cannot be calculated for a survey sample when the dataset does not contain any eligible nonrespondents or cases with unknown eligibility.")
+      }
+      
+      if (global_values$respondents_only & input$data_collection_method == "Attempted Census" & is.null(input$population_size_variables)) {
+        stop("Can only calculate an overall response rate for an attempted census if the data contain eligible respondents or cases with unknown eligibility, or if a population size was specified during setup.")
+      }
+      
+      if (input$sampling_weight_variable == "[No Weights]") {
+        sampling_weight_variable_input <- NULL 
+      } else {
+        sampling_weight_variable_input <- input$sampling_weight_variable
+      }
+      incProgress(n)
+  
+      if (input$elig_method == "CASRO subgroup (recommended)") {
+        elig_method_input <- "CASRO-subgroup" 
+      } else if (input$elig_method == "CASRO overall") {
+        elig_method_input <- "CASRO-overall"
+      } else {
+        elig_method_input <- input$elig_method
+      }
+      
+      data <-group_by(global_values$selected_data, across(input$analysis_response_rates_group))
+      incProgress(n)
+      
+      param_list <<- list(
+        "data" = data,
+        "status" = input$response_eligibility_variable,
+        "status_codes" = c(
+            "ER" = input$eligible_respondents,
+            "EN" = input$eligible_nonrespondents,
+            "IE" = input$known_ineligible,
+            "UE" = input$unknown_ineligible
+          ),
+        "weights" = sampling_weight_variable_input,
+        "rr_formula" = input$rr_formula,
+        "elig_method" = elig_method_input,
+        "e" = as_numeric_input(input$e_specified)
+      )
+      footer_value <<- NULL
+      do.call(calculate_response_rates, param_list)
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
     
-    data <-group_by(global_values$selected_data, across(input$analysis_response_rates_group))
-    
-    param_list <<- list(
-      "data" = data,
-      "status" = input$response_eligibility_variable,
-      "status_codes" = c(
-          "ER" = input$eligible_respondents,
-          "EN" = input$eligible_nonrespondents,
-          "IE" = input$known_ineligible,
-          "UE" = input$unknown_ineligible
-        ),
-      "weights" = sampling_weight_variable_input,
-      "rr_formula" = input$rr_formula,
-      "elig_method" = elig_method_input,
-      "e" = as_numeric_input(input$e_specified)
-    )
-    footer_value <<- NULL
-    do.call(calculate_response_rates, param_list)
-  }, error = function(e) {
-    return(e)
   })
   output$analysis_output <- render_analysis_output(output_table)
 })
@@ -1179,32 +1209,42 @@ observeEvent(input$analysis_subpop_differ, {
 observeEvent(input$analysis_subpop_differ_submit, {
   routine_name <<- "chisq_test_ind_response"
   routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-  output_table <- tryCatch({
- 
-    survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
-    
-    status_codes <- c(
-      "ER" = input$eligible_respondents,
-      "EN" = input$eligible_nonrespondents,
-      "IE" = input$known_ineligible,
-      "UE" = global_values$analysis_ue_category
-    )
-    
-    
-    param_list <<- list(
-      "survey_design" = survey_design, 
-      "status" = "analysis_response_eligibility_variable", 
-      "status_codes" = status_codes, 
-      "aux_vars" = input$chisq_aux_variables)
-    
-    footer_value <<- NULL
-    do.call(chisq_test_ind_response, param_list)
-    
-  }, error = function(e) {
-    return(e)
+  withProgress(message = "Running Analysis...", {
+    n = 1/3
+    output_table <- tryCatch({
+   
+      if (global_values$respondents_only){
+        stop("The dataset does not contain any eligible nonrespondents or cases with unknown eligibility.")
+      }
+      
+      survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
+      )
+      incProgress(n)
+      
+      status_codes <- c(
+        "ER" = input$eligible_respondents,
+        "EN" = input$eligible_nonrespondents,
+        "IE" = input$known_ineligible,
+        "UE" = global_values$analysis_ue_category
+      )
+      incProgress(n)
+      
+      
+      param_list <<- list(
+        "survey_design" = survey_design, 
+        "status" = "analysis_response_eligibility_variable", 
+        "status_codes" = status_codes, 
+        "aux_vars" = input$chisq_aux_variables)
+      
+      footer_value <<- NULL
+      do.call(chisq_test_ind_response, param_list)
+      
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
   })
   output$analysis_output <- render_analysis_output(output_table)
 })
@@ -1394,76 +1434,107 @@ observeEvent(input$external_benchmark_table_cell_edit, {
 
 observeEvent(input$analysis_compare_external_submit, {
   
-  output_table <- tryCatch({
- 
-    survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
+  withProgress(message = "Running Analysis...", {
+    n <- 1/4
+    output_table <- tryCatch({
+      
+      if (global_values$respondents_only){
+        stop("The dataset does not contain any eligible nonrespondents or cases with unknown eligibility.")
+      }
+      
+      if (input$t3_t_or_chisq_test == "t test") {
+        routine_name <<- "t_test_vs_external_estimate"
+        routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+      } else {
+        routine_name <<- "chisq_test_vs_external_estimate"
+        routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+      }
 
-    resp_design <- subset(
-      x = survey_design, 
-      get(input$response_eligibility_variable) == input$eligible_respondents
-    )
-    
-    if (input$t3_y_var_categorical == "Yes") {
-      # Transform edited table into named vector
-      external_estimates <- external_benchmark_table_edited %>%
-        tibble::column_to_rownames(input$t3_y_var) %>%
-        select(Percentages) %>%
-        t() %>%
-        drop()
+      if (exists("external_benchmark_table_edited")) {
+        if (any(external_benchmark_table_edited$Percentages < 0)) {
+          stop("Percentages for external data cannot be below 0")
+        }
+        # checks if values are entered as 0.5 or 50%, assumes no one would type 1.3 meaning 130%
+        if (all(external_benchmark_table_edited$Percentages <= 1)) {
+          if (sum(external_benchmark_table_edited$Percentages) <= 0.99 |
+              sum(external_benchmark_table_edited$Percentages) >= 1.01) {
+            stop("Percentages for external data must add up to 100%")
+          }
+        } else {
+          if (sum(external_benchmark_table_edited$Percentages) <= 99 |
+              sum(external_benchmark_table_edited$Percentages) >= 101) {
+            stop("Percentages for external data must add up to 100%")
+          }
+        }
+      }
+      survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
+      )
+  
+      resp_design <- subset(
+        x = survey_design, 
+        get(input$response_eligibility_variable) == input$eligible_respondents
+      )
+      incProgress(n)
       
-      external_standard_errors <- external_benchmark_table_edited %>%
-        tibble::column_to_rownames(input$t3_y_var) %>%
-        select(`Standard Error`) %>%
-        t() %>%
-        drop()
+      if (input$t3_y_var_categorical == "Yes") {
+        # Transform edited table into named vector
+        external_estimates <- external_benchmark_table_edited %>%
+          tibble::column_to_rownames(input$t3_y_var) %>%
+          select(Percentages) %>%
+          t() %>%
+          drop()
+        
+        external_standard_errors <- external_benchmark_table_edited %>%
+          tibble::column_to_rownames(input$t3_y_var) %>%
+          select(`Standard Error`) %>%
+          t() %>%
+          drop()
+        
+        if (anyNA(external_standard_errors)) external_standard_errors <- NULL
+        
+      } else {
+        external_estimates <- input$external_benchmark_value
+        external_standard_errors <- NULL
+      }
+      incProgress(n)
+  
+      degrees_of_freedom <- ifelse(
+        is.null(as_numeric_input(input$t3_degrees_of_freedom)),
+        survey::degf(resp_design) - 1,
+        as_numeric_input(input$t3_degrees_of_freedom)
+      )
+      incProgress(n)
       
-      if (anyNA(external_standard_errors)) external_standard_errors <- NULL
-      
-    } else {
-      external_estimates <- input$external_benchmark_value
-      external_standard_errors <- NULL
-    }
-
-    degrees_of_freedom <- ifelse(
-      is.null(as_numeric_input(input$t3_degrees_of_freedom)),
-      survey::degf(resp_design) - 1,
-      as_numeric_input(input$t3_degrees_of_freedom)
-    )
-    
-    if (input$t3_t_or_chisq_test == "t test") {
-      routine_name <<- "t_test_vs_external_estimate"
-      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-      param_list <<- list(
-      "survey_design" = resp_design, 
-      "y_var" = input$t3_y_var,
-      "ext_ests" = external_estimates,
-      "ext_std_errors" = external_standard_errors,
-      "na.rm" = switch(input$t3_drop_missing_y_var, "Yes" = TRUE, "No" = FALSE),
-      "null_difference" = input$t3_null_difference,
-      "alternative" = input$t3_alternative,
-      "degrees_of_freedom" = degrees_of_freedom)
-      footer_value <<- NULL
-      do.call(t_test_vs_external_estimate, param_list)
-    } else {
-      routine_name <<- "chisq_test_vs_external_estimate"
-      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-      param_list <<- list(
-        "survey_design" = resp_design,
+      if (input$t3_t_or_chisq_test == "t test") {
+        param_list <<- list(
+        "survey_design" = resp_design, 
         "y_var" = input$t3_y_var,
         "ext_ests" = external_estimates,
-        "na.rm" = switch(input$t3_drop_missing_y_var, "Yes" = TRUE, "No" = FALSE)
-      )
-      footer_value <<- NULL
-      do.call(chisq_test_vs_external_estimate, param_list)
-    }
-        
-  }, error = function(e) {
-    return(e)
+        "ext_std_errors" = external_standard_errors,
+        "na.rm" = switch(input$t3_drop_missing_y_var, "Yes" = TRUE, "No" = FALSE),
+        "null_difference" = input$t3_null_difference,
+        "alternative" = input$t3_alternative,
+        "degrees_of_freedom" = degrees_of_freedom)
+        footer_value <<- NULL
+        do.call(t_test_vs_external_estimate, param_list)
+      } else {
+        param_list <<- list(
+          "survey_design" = resp_design,
+          "y_var" = input$t3_y_var,
+          "ext_ests" = external_estimates,
+          "na.rm" = switch(input$t3_drop_missing_y_var, "Yes" = TRUE, "No" = FALSE)
+        )
+        footer_value <<- NULL
+        do.call(chisq_test_vs_external_estimate, param_list)
+      }
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
+    
   })
-  
   output$analysis_output <- render_analysis_output(output_table)
   
 })
@@ -1532,69 +1603,71 @@ observeEvent(input$analysis_compare_sample, {
 })
 
 observeEvent(input$t4_analysis_compare_sample_submit, {
-
-  output_table <- tryCatch({
-
-    survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
-
-    degrees_of_freedom <- ifelse(
-      is.null(as_numeric_input(input$t4_degrees_of_freedom)),
-      survey::degf(survey_design) - 1,
-      as_numeric_input(input$t4_degrees_of_freedom)
-    )
-    
-    status_codes <- c(
-      "ER" = input$eligible_respondents,
-      "EN" = input$eligible_nonrespondents,
-      "IE" = input$known_ineligible,
-      "UE" = global_values$analysis_ue_category
-    )
-    
-    if (is.null(input$t4_t_full_or_elig)) {
-      t4_comparison <- "Respondents vs. Respondents and Nonrespondents"
-    } else {
-      t4_comparison <- input$t4_t_full_or_elig
-    }
-    
-    
-    if (t4_comparison == "Respondents vs. All sampled cases (regardless of response or eligibility status)") {
-      routine_name <<- "t_test_resp_vs_full"
-      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-      param_list <<- list(
-      "survey_design" = survey_design,
-      "y_var" = input$t4_y_var,
-      "status" = "analysis_response_eligibility_variable", 
-      "status_codes" = status_codes, 
-      "null_difference" = input$t4_null_difference,
-      "alternative" = input$t4_alternative,
-      "degrees_of_freedom" = degrees_of_freedom)
-      footer_value <<- NULL
-      do.call(t_test_resp_vs_full, param_list)
-    } else {
-      routine_name <<- "t_test_resp_vs_elig"
-      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-      param_list <<- list(
-      "survey_design" = survey_design,
-      "y_var" = input$t4_y_var,
-      "status" = "analysis_response_eligibility_variable", 
-      "status_codes" = status_codes, 
-      "null_difference" = input$t4_null_difference,
-      "alternative" = input$t4_alternative,
-      "degrees_of_freedom" = degrees_of_freedom)
-      footer_value <<- NULL
-      do.call(t_test_resp_vs_elig, param_list)
-    }
-
-
-  }, error = function(e) {
-    return(e)
+  withProgress(message = "Running Analysis...", {
+    n <- 1/4
+    output_table <- tryCatch({
+  
+      survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
+      )
+      incProgress(amount = n)
+      
+      degrees_of_freedom <- ifelse(
+        is.null(as_numeric_input(input$t4_degrees_of_freedom)),
+        survey::degf(survey_design) - 1,
+        as_numeric_input(input$t4_degrees_of_freedom)
+      )
+      status_codes <- c(
+        "ER" = input$eligible_respondents,
+        "EN" = input$eligible_nonrespondents,
+        "IE" = input$known_ineligible,
+        "UE" = global_values$analysis_ue_category
+      )
+      incProgress(amount = n)
+      
+      if (is.null(input$t4_t_full_or_elig)) {
+        t4_comparison <- "Respondents vs. Respondents and Nonrespondents"
+      } else {
+        t4_comparison <- input$t4_t_full_or_elig
+      }
+      incProgress(amount = n)
+      
+      
+      if (t4_comparison == "Respondents vs. All sampled cases (regardless of response or eligibility status)") {
+        routine_name <<- "t_test_resp_vs_full"
+        routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+        param_list <<- list(
+        "survey_design" = survey_design,
+        "y_var" = input$t4_y_var,
+        "status" = "analysis_response_eligibility_variable", 
+        "status_codes" = status_codes, 
+        "null_difference" = input$t4_null_difference,
+        "alternative" = input$t4_alternative,
+        "degrees_of_freedom" = degrees_of_freedom)
+        footer_value <<- NULL
+        do.call(t_test_resp_vs_full, param_list)
+      } else {
+        routine_name <<- "t_test_resp_vs_elig"
+        routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+        param_list <<- list(
+        "survey_design" = survey_design,
+        "y_var" = input$t4_y_var,
+        "status" = "analysis_response_eligibility_variable", 
+        "status_codes" = status_codes, 
+        "null_difference" = input$t4_null_difference,
+        "alternative" = input$t4_alternative,
+        "degrees_of_freedom" = degrees_of_freedom)
+        footer_value <<- NULL
+        do.call(t_test_resp_vs_elig, param_list)
+      }
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(amount = n)
+  
+    output$analysis_output <- render_analysis_output(output_table)
   })
-
-  output$analysis_output <- render_analysis_output(output_table)
-
 })
 ```
 
@@ -1628,22 +1701,38 @@ observeEvent({input$analysis_adjust_weights; global_values$is_census_data_with_n
   } else if ("survey.design" %in% class(global_values$survey_design)) {
     output$as_rep_design_controls <- renderUI({
       tagList(
-        selectInput(
-          inputId = "t5_replicate_weight_method",
-          label = paste(
-            "For this analysis, replicate weights will be created.", 
-            "Select a type of replicate weight:"
-          ),
-          choices = c("Jackknife (JKn or JK1)","Bootstrap (Recommended)"),
-          selected = "Bootstrap (Recommended)",
-          width = "95%"
-        ),   
-        numericInput(
-          inputId = "t5_n_replicates",
-          label = "Select number of bootstrap replicates (500 or more):",
-          value = pmin(500, 2 * degf(global_values$survey_design)),
-          width = "95%"
-        )
+        {
+          if (global_values$is_census_data_with_nonrespondents) {
+            div(id = "t5_replicate_weight_method_div")
+          } else {
+            div(id = "t5_replicate_weight_method_div",
+              selectInput(
+                inputId = "t5_replicate_weight_method",
+                label = paste(
+                  "For this analysis, replicate weights will be created.", 
+                  "Select a type of replicate weight:"
+                ),
+                choices = c("Jackknife (JKn or JK1)","Bootstrap (Recommended)"),
+                selected = "Bootstrap (Recommended)",
+                width = "95%"
+              )
+            )
+          }
+        },
+        {
+          if (global_values$is_census_data_with_nonrespondents) {
+            div(id = "t5_n_replicates_div")
+          } else {
+            div(id = "t5_n_replicates_div",
+              numericInput(
+                inputId = "t5_n_replicates",
+                label = "Select number of bootstrap replicates (500 or more):",
+                value = pmin(500, 2 * degf(global_values$survey_design)),
+                width = "95%"
+              )
+            )
+          }
+        }
       )
     })
 
@@ -1783,27 +1872,40 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
   routine_name <<- "t_test_of_weight_adjustment"
   routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
+    # n equals the subdivision of steps in this process used for incrementing the progress bar, here there are 5 steps so n = 1/5
+    n <- 1/5
   output_table <- tryCatch({
-    
     # Create rep survey design calls but do not evaluate yet
-    if (input$t5_replicate_weight_method == "Bootstrap (Recommended)") {
-      orig_rep_design <- as.svrepdesign(
-        design = global_values$survey_design, 
-        type = "subbootstrap", 
-        replicates = input$t5_n_replicates
-      )
-    } else if (input$t5_replicate_weight_method == "Jackknife (JKn or JK1)") {
-      orig_rep_design <- as.svrepdesign(
+    if (!global_values$is_census_data_with_nonrespondents) {
+      if (input$t5_replicate_weight_method == "Bootstrap (Recommended)") {
+        orig_rep_design <- as.svrepdesign(
+          design = global_values$survey_design, 
+          type = "subbootstrap", 
+          replicates = input$t5_n_replicates
+        )
+      } else if (input$t5_replicate_weight_method == "Jackknife (JKn or JK1)") {
+        orig_rep_design <- as.svrepdesign(
+          design = global_values$survey_design,
+          type = "auto"
+        )
+      }
+    } else {
+      orig_rep_design <- svrep::as_random_group_jackknife_design(
         design = global_values$survey_design,
-        type = "auto"
+        replicates = 50,
+        adj_method = "variance-stratum-psus",
+        scale_method = "variance-stratum-psus"
       )
+      orig_rep_design$type <- "other"
     }
-
+    incProgress(amount = n)
+    
     # Subset orig rep design to only include eligible respondents
     orig_resp_rep_design <- subset(
       x = orig_rep_design, 
       get(input$response_eligibility_variable) == input$eligible_respondents
     )
+    incProgress(amount = n)
     
     if (input$t5_raked_reps_included) {
       raked_rep_design <- get_survey_design_object(
@@ -1815,18 +1917,21 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
         raked_rep_design,
         get(input$response_eligibility_variable) == input$eligible_respondents
       ) 
+      incProgress(amount = n)
     } else if (!global_values$is_census_data_with_nonrespondents) {
       raked_resp_rep_design <- rake_to_benchmarks(
         survey_design = orig_resp_rep_design,
         group_vars = input$t5_raking_group_vars,
         group_benchmark_vars = input$t5_raking_benchmark_vars
       )
+      incProgress(amount = n)
     } else if (global_values$is_census_data_with_nonrespondents) {
       # Produce population counts for each raking variable, excluding known ineligibles
       pop_data_for_counts <- orig_rep_design$variables |>
         subset(
           get(input$response_eligibility_variable) != input$known_ineligible
         )
+      incProgress(amount = n/3)
       benchmark_counts <- lapply(input$t5_raking_group_vars, function(var_name) {
         count_var_name <- paste0("RAKING_BENCHMARK_VAR_", var_name)
         count_df <- pop_data_for_counts |> dplyr::count(!!sym(var_name), name = count_var_name)
@@ -1834,6 +1939,7 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
         count_df
         #cat(paste0("\nCount_Df: ",str(count_df)))
       })
+      incProgress(amount = n/3)
       # Add population counts to the dataset used for the analysis
       names(benchmark_counts) <- input$t5_raking_group_vars
       for (raking_group_var_name in names(benchmark_counts)) {
@@ -1843,8 +1949,8 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
           y = as.data.frame(benchmark_counts[[raking_group_var_name]]),
           by = raking_group_var_name
         )
-        
       }
+      incProgress(amount = n/3)
       benchmark_vars <- paste0("RAKING_BENCHMARK_VAR_", input$t5_raking_group_vars)
       # Use the raking function
       raked_resp_rep_design <- rake_to_benchmarks(
@@ -1852,8 +1958,7 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
         group_vars = input$t5_raking_group_vars,
         group_benchmark_vars = benchmark_vars
       )
-    }   
-   
+    }
     
     # t_test_of_weight_adjustment(
     #   orig_design = orig_resp_rep_design, 
@@ -1870,10 +1975,12 @@ observeEvent(input$t5_analysis_adjust_weights_submit, {
       "The following variables were used to weight data from respondents: %s",
       paste(input$t5_raking_group_vars, collapse = ", ")
     )
- do.call(t_test_of_weight_adjustment, param_list)
+    incProgress(amount = n)
+    do.call(t_test_of_weight_adjustment, param_list)
   }, error = function(e) {
     return(e)
   })
+  incProgress(amount = n)
   })
   
   output$analysis_output <- render_analysis_output(output_table)
@@ -1965,61 +2072,70 @@ observeEvent(input$analysis_predict_response_submit, {
   routine_name <<- "predict_response_status_via_glm"
   routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
-  output_table <- tryCatch({
- 
-    survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
-    
-    status_codes <- c(
-      "ER" = input$eligible_respondents,
-      "EN" = input$eligible_nonrespondents,
-      "IE" = input$known_ineligible,
-      "UE" = global_values$analysis_ue_category
-    )
-    
-    selection_controls <- list(
-      alpha_enter = input$t6_alpha_enter,
-      alpha_remain = input$t6_alpha_remain,
-      max_iterations = input$t6_max_iterations
-    )
-
-    param_list <<- list(
-      "survey_design" = survey_design,
-      "status" = "analysis_response_eligibility_variable", 
-      "status_codes" = status_codes,
-      "numeric_predictors" = input$t6_numeric_predictors,
-      "categorical_predictors" = input$t6_categorical_predictors,
-      "model_selection" = input$t6_model_selection,
-      "selection_controls" = selection_controls
-    )
-    
-    result <- do.call(predict_response_status_via_glm, param_list)
-    
-    # If there are categorical predictors, produce a text string
-    # describing the reference levels in the regression
-    ref_levels_table <- attr(result, 'reference_levels')
-    if (!is.null(ref_levels_table)) {
-      ref_levels_string <- sprintf(
-        '%s "%s"',
-        ref_levels_table[['variable']],
-        ref_levels_table[['variable_category']]
-      ) |> paste(collapse = "; ")
-      ref_levels_string <- paste0(
-        "For categorical predictor variables, the following categories were used as reference levels for the regression: ", 
-        " ", ref_levels_string
+    n = 1/5
+    output_table <- tryCatch({
+   
+      if (global_values$respondents_only){
+        stop("The dataset does not contain any eligible nonrespondents or cases with unknown eligibility.")
+      }
+      
+      survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
       )
-    } else {
-      ref_levels_string <- NULL
-    }
-    footer_value <<- ref_levels_string
-
-    # Return the result
-    result        
-  }, error = function(e) {
-    return(e)
-  })
+      incProgress(n)
+      
+      status_codes <- c(
+        "ER" = input$eligible_respondents,
+        "EN" = input$eligible_nonrespondents,
+        "IE" = input$known_ineligible,
+        "UE" = global_values$analysis_ue_category
+      )
+      
+      selection_controls <- list(
+        alpha_enter = input$t6_alpha_enter,
+        alpha_remain = input$t6_alpha_remain,
+        max_iterations = input$t6_max_iterations
+      )
+  
+      param_list <<- list(
+        "survey_design" = survey_design,
+        "status" = "analysis_response_eligibility_variable", 
+        "status_codes" = status_codes,
+        "numeric_predictors" = input$t6_numeric_predictors,
+        "categorical_predictors" = input$t6_categorical_predictors,
+        "model_selection" = input$t6_model_selection,
+        "selection_controls" = selection_controls
+      )
+      incProgress(n)
+      
+      result <- do.call(predict_response_status_via_glm, param_list)
+      incProgress(n)
+      # If there are categorical predictors, produce a text string
+      # describing the reference levels in the regression
+      ref_levels_table <- attr(result, 'reference_levels')
+      if (!is.null(ref_levels_table)) {
+        ref_levels_string <- sprintf(
+          '%s "%s"',
+          ref_levels_table[['variable']],
+          ref_levels_table[['variable_category']]
+        ) |> paste(collapse = "; ")
+        ref_levels_string <- paste0(
+          "For categorical predictor variables, the following categories were used as reference levels for the regression: ", 
+          " ", ref_levels_string
+        )
+      } else {
+        ref_levels_string <- NULL
+      }
+      footer_value <<- ref_levels_string
+      incProgress(n)
+  
+      # Return the result
+      result        
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
   })
   
   output$analysis_output <- render_analysis_output(output_table)
@@ -2169,63 +2285,68 @@ observeEvent(input$analysis_aux_predictive_submit, {
   routine_name <<- "predict_outcome_via_glm"
   routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
-  output_table <- tryCatch({
- 
-    survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
-    survey_design <- subset(
-      survey_design,
-      survey_design[['variables']][["analysis_response_eligibility_variable"]] == input$eligible_respondents
-    )
-    survey_design <- subset(
-      survey_design,
-      !is.na(get(input$t7_outcome_variable))
-    )
-    
-    selection_controls <- list(
-      alpha_enter = input$t7_alpha_enter,
-      alpha_remain = input$t7_alpha_remain,
-      max_iterations = input$t7_max_iterations
-    )
-
-    param_list <<- list(
-      "survey_design" = survey_design,
-      "outcome_variable" = input$t7_outcome_variable,
-      "outcome_type" = input$t7_outcome_type,
-      "outcome_to_predict" = input$t7_outcome_to_predict,
-      "numeric_predictors" = input$t7_numeric_predictors,
-      "categorical_predictors" = input$t7_categorical_predictors,
-      "model_selection" = input$t7_model_selection,
-      "selection_controls" = selection_controls
-    )
-    result <- do.call(predict_outcome_via_glm, param_list)
-    
-    # If there are categorical predictors, produce a text string
-    # describing the reference levels in the regression
-    ref_levels_table <- attr(result, 'reference_levels')
-    if (!is.null(ref_levels_table)) {
-      ref_levels_string <- sprintf(
-        '%s "%s"',
-        ref_levels_table[['variable']],
-        ref_levels_table[['variable_category']]
-      ) |> paste(collapse = "; ")
-      ref_levels_string <- paste0(
-        "For categorical predictor variables, the following categories were used as reference levels for the regression: ", 
-        " ", ref_levels_string
+    n <- 1/4
+    output_table <- tryCatch({
+   
+      survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
       )
-    } else {
-      ref_levels_string <- NULL
-    }
-    footer_value <<- ref_levels_string
-    
-    # Return the result
-    result        
-    
-  }, error = function(e) {
-    return(e)
-  })
+      survey_design <- subset(
+        survey_design,
+        survey_design[['variables']][["analysis_response_eligibility_variable"]] == input$eligible_respondents
+      )
+      survey_design <- subset(
+        survey_design,
+        !is.na(get(input$t7_outcome_variable))
+      )
+      incProgress(n)
+      
+      selection_controls <- list(
+        alpha_enter = input$t7_alpha_enter,
+        alpha_remain = input$t7_alpha_remain,
+        max_iterations = input$t7_max_iterations
+      )
+  
+      param_list <<- list(
+        "survey_design" = survey_design,
+        "outcome_variable" = input$t7_outcome_variable,
+        "outcome_type" = input$t7_outcome_type,
+        "outcome_to_predict" = input$t7_outcome_to_predict,
+        "numeric_predictors" = input$t7_numeric_predictors,
+        "categorical_predictors" = input$t7_categorical_predictors,
+        "model_selection" = input$t7_model_selection,
+        "selection_controls" = selection_controls
+      )
+      result <- do.call(predict_outcome_via_glm, param_list)
+      incProgress(n)
+      
+      # If there are categorical predictors, produce a text string
+      # describing the reference levels in the regression
+      ref_levels_table <- attr(result, 'reference_levels')
+      if (!is.null(ref_levels_table)) {
+        ref_levels_string <- sprintf(
+          '%s "%s"',
+          ref_levels_table[['variable']],
+          ref_levels_table[['variable_category']]
+        ) |> paste(collapse = "; ")
+        ref_levels_string <- paste0(
+          "For categorical predictor variables, the following categories were used as reference levels for the regression: ", 
+          " ", ref_levels_string
+        )
+      } else {
+        ref_levels_string <- NULL
+      }
+      footer_value <<- ref_levels_string
+      incProgress(n)
+      
+      # Return the result
+      result        
+      
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
   })
   
   output$analysis_output <- render_analysis_output(output_table)
@@ -2277,30 +2398,34 @@ observeEvent(input$analysis_cumulative_estimates_submit, {
   routine_name <<- "get_cumulative_estimates"
   routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
   withProgress(message = "Running Analysis...", {
-  output_table <- tryCatch({
- 
-    survey_design <- get_survey_design_object(
-      data = global_values$selected_data, 
-      input = input
-    )
-    
-    survey_design <- subset(
-      survey_design,
-      get(input$response_eligibility_variable) == input$eligible_respondents
-    )
-
-    param_list <<- list(
-      "survey_design" = survey_design,
-      "y_var" = input$t8_y_var,
-      "y_var_type" = input$t8_y_var_type,
-      "predictor_variable" = input$t8_predictor_variable
-    )
-    footer_value <<- NULL
-    do.call(get_cumulative_estimates, param_list)
-        
-  }, error = function(e) {
-    return(e)
-  })
+    n <- 1/3
+    output_table <- tryCatch({
+   
+      survey_design <- get_survey_design_object(
+        data = global_values$selected_data, 
+        input = input
+      )
+      incProgress(n)
+      
+      survey_design <- subset(
+        survey_design,
+        get(input$response_eligibility_variable) == input$eligible_respondents
+      )
+      incProgress(n)
+  
+      param_list <<- list(
+        "survey_design" = survey_design,
+        "y_var" = input$t8_y_var,
+        "y_var_type" = input$t8_y_var_type,
+        "predictor_variable" = input$t8_predictor_variable
+      )
+      footer_value <<- NULL
+      do.call(get_cumulative_estimates, param_list)
+          
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
   })
   
   output$analysis_output <- render_analysis_output(output_table)
@@ -2343,100 +2468,111 @@ observeEvent(input$analysis_across_subgroups, {
 
 observeEvent(input$analysis_across_subgroups_submit, {
   
-  
-  output_table <- tryCatch({
-    routine_name <<- "analysis_across_subgroups"
-    routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
-    grouping_variable <- input$t9_grouping_variable
-    outcome_variable <- input$t9_outcome_variable
+  withProgress(message = "Running Analysis...", {
+    n <- 1/8
+    output_table <- tryCatch({
+      routine_name <<- "analysis_across_subgroups"
+      routine_label <<- routines[which(routines$routine_name == routine_name), "routine_label"]
+      grouping_variable <- input$t9_grouping_variable
+      outcome_variable <- input$t9_outcome_variable
+        
+      # Create example survey design ----
+      survey_design <- get_survey_design_object(
+          data = global_values$selected_data, 
+          input = input
+        )
+      incProgress(n)
       
-    # Create example survey design ----
-    survey_design <- get_survey_design_object(
-        data = global_values$selected_data, 
-        input = input
-      )
-    
-    # Subset the survey design object to relevant data ----
-      survey_design <- survey_design |> srvyr::as_survey()
-      
-      if (!is.null(grouping_variable) && (grouping_variable != "")) {
+      # Subset the survey design object to relevant data ----
+        survey_design <- survey_design |> srvyr::as_survey()
+        
+        if (!is.null(grouping_variable) && (grouping_variable != "")) {
+          subsetted_survey_design <- survey_design |>
+          srvyr::filter(!is.na(.data[[grouping_variable]]))
+        }
         subsetted_survey_design <- survey_design |>
-        srvyr::filter(!is.na(.data[[grouping_variable]]))
+          srvyr::filter(!is.na(.data[[outcome_variable]]))
+      incProgress(n)
+      
+        # Produce the desired output table ----
+        output_table <- subsetted_survey_design |>
+          srvyr::group_by(dplyr::across(dplyr::one_of(grouping_variable, outcome_variable))) |>
+          srvyr::summarize(
+            Percent = srvyr::survey_prop(vartype = "ci", proportion = TRUE, prop_method = "logit"),
+            Weighted_Count = srvyr::survey_total(vartype = NULL),
+            Unweighted_Count = srvyr::unweighted(n())
+          ) |>
+          ungroup() |>
+          dplyr::arrange(dplyr::across(dplyr::one_of(outcome_variable, grouping_variable))) |>
+          dplyr::rename_with(.fn = function(x) dplyr::case_when(
+            x == "Percent_low" ~ "Lower_95_CI",
+            x == "Percent_upp" ~ "Upper_95_CI",
+            TRUE ~ x
+      ))
+      incProgress(n)
+      
+      status_codes <- c(
+        "ER" = input$eligible_respondents,
+        "EN" = input$eligible_nonrespondents,
+        "IE" = input$known_ineligible,
+        "UE" = global_values$analysis_ue_category
+      )
+      
+      chisq_formula <- stats::reformulate(termlabels = c(outcome_variable, grouping_variable))
+      incProgress(n)
+      
+      htest_obj <- tryCatch(
+        survey::svychisq(
+          design = subsetted_survey_design, 
+          formula =  chisq_formula,
+          statistic = "F"
+        ),
+        error = function(e) {list(
+          "statistic" = NA,
+          "p.value" = NA,
+          "parameter" = c("ndf" = NA, "ddf" = NA)
+        )}
+      )
+      incProgress(n)
+      
+      result_df <- data.frame(statistic = htest_obj[["statistic"]], 
+                              ndf = htest_obj[["parameter"]][["ndf"]], ddf = htest_obj[["parameter"]][["ddf"]], 
+                              p_value = htest_obj[["p.value"]],
+                              test_method = "Rao-Scott Chi-Square test (second-order adjustment)")
+      rownames(result_df) <- NULL
+      incProgress(n)
+      
+      if (!is.na(result_df$p_value)) {
+        p_value_text <- sprintf(
+          "The test of whether the survey outcome, %s, differs among subgroups defined by %s has a p-value of %s, based on a Chi-squared test of independence.",
+          outcome_variable, grouping_variable,
+          format.pval(result_df$p_value, eps = 0.001)
+        )
+      } else {
+        p_value_text <- paste0(
+          "A Chi-squared test of independence could not be conducted",
+          " due to perfect correlation between categories of the survey outcome and the grouping variable.",
+          " Consider updating the grouping variable to use broader categories."
+        )
       }
-      subsetted_survey_design <- survey_design |>
-        srvyr::filter(!is.na(.data[[outcome_variable]]))
+      incProgress(n)
     
-      # Produce the desired output table ----
-      output_table <- subsetted_survey_design |>
-        srvyr::group_by(dplyr::across(dplyr::one_of(grouping_variable, outcome_variable))) |>
-        srvyr::summarize(
-          Percent = srvyr::survey_prop(vartype = "ci", proportion = TRUE, prop_method = "logit"),
-          Weighted_Count = srvyr::survey_total(vartype = NULL),
-          Unweighted_Count = srvyr::unweighted(n())
-        ) |>
-        ungroup() |>
-        dplyr::arrange(dplyr::across(dplyr::one_of(outcome_variable, grouping_variable))) |>
-        dplyr::rename_with(.fn = function(x) dplyr::case_when(
-          x == "Percent_low" ~ "Lower_95_CI",
-          x == "Percent_upp" ~ "Upper_95_CI",
-          TRUE ~ x
-    ))
-    status_codes <- c(
-      "ER" = input$eligible_respondents,
-      "EN" = input$eligible_nonrespondents,
-      "IE" = input$known_ineligible,
-      "UE" = global_values$analysis_ue_category
-    )
-    
-    chisq_formula <- stats::reformulate(termlabels = c(outcome_variable, grouping_variable))
-    
-    htest_obj <- tryCatch(
-      survey::svychisq(
-        design = subsetted_survey_design, 
-        formula =  chisq_formula,
-        statistic = "F"
-      ),
-      error = function(e) {list(
-        "statistic" = NA,
-        "p.value" = NA,
-        "parameter" = c("ndf" = NA, "ddf" = NA)
-      )}
-    )
-    
-    result_df <- data.frame(statistic = htest_obj[["statistic"]], 
-                            ndf = htest_obj[["parameter"]][["ndf"]], ddf = htest_obj[["parameter"]][["ddf"]], 
-                            p_value = htest_obj[["p.value"]],
-                            test_method = "Rao-Scott Chi-Square test (second-order adjustment)")
-    rownames(result_df) <- NULL
-    
-    if (!is.na(result_df$p_value)) {
-      p_value_text <- sprintf(
-        "The test of whether the survey outcome, %s, differs among subgroups defined by %s has a p-value of %s, based on a Chi-squared test of independence.",
-        outcome_variable, grouping_variable,
-        format.pval(result_df$p_value, eps = 0.001)
-      )
-    } else {
-      p_value_text <- paste0(
-        "A Chi-squared test of independence could not be conducted",
-        " due to perfect correlation between categories of the survey outcome and the grouping variable.",
-        " Consider updating the grouping variable to use broader categories."
-      )
-    }
-  
-    
-    param_list <<- list(
-      "survey_design" = survey_design, 
-      "status" = "analysis_response_eligibility_variable", 
-      "status_codes" = status_codes, 
-      "aux_vars" = input$chisq_aux_variables,
-      "grouping_variable" = input$t9_grouping_variable,
-      "outcome_variable" = input$t9_outcome_variable
-      )
-    footer_value <<- p_value_text
-    
-    output_table
-  }, error = function(e) {
-    return(e)
+      
+      param_list <<- list(
+        "survey_design" = survey_design, 
+        "status" = "analysis_response_eligibility_variable", 
+        "status_codes" = status_codes, 
+        "aux_vars" = input$chisq_aux_variables,
+        "grouping_variable" = input$t9_grouping_variable,
+        "outcome_variable" = input$t9_outcome_variable
+        )
+      footer_value <<- p_value_text
+      
+      output_table
+    }, error = function(e) {
+      return(e)
+    })
+    incProgress(n)
   })
   output$analysis_output <- render_analysis_output(output_table)
 })
@@ -2685,7 +2821,7 @@ uiOutput("select_row_output")
 
 
 
-<external_link data-href="https://ideadata.org/resources/resource/2799/nonresponse-bias-analysis-application">NRBA App User's Guide</external_link> {data-navmenu="Resources"}
+<external_link data-href="https://ideadata.org/resources/resource/2799/nonresponse-bias-analysis-application">NRBA App Reference Guide</external_link> {data-navmenu="Resources"}
 =====================================
 
 

@@ -78,7 +78,14 @@ $(document).ready(function(){
 
   $("body").on("shown.bs.tab", "a[data-toggle='tab']", function(e) {
     Shiny.setInputValue("active_tab", $(e.target).parent().index());
- });  
+ }); 
+ 
+  i = 0;
+  setInterval(function() {
+      i = ++i % 4;
+      $(".progress-message").html("Running Analysis"+Array(i+1).join("."));
+  }, 500);
+
 });
 
 

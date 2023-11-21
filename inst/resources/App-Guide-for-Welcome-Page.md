@@ -19,7 +19,7 @@ sections below provide a broad overview of the functionality of each module.
 
 First, select and import a dataset to use for analysis (Step 1: Import). IDC recommends that your dataset
 has certain elements to ensure optimal use of the *NRBA App*. Refer to the Preparing Your Dataset section
-of the *NRBA App User's Guide* for more information and a list of these elements. Once you have imported
+of the *NRBA App Reference Guide* for more information and a list of these elements. Once you have imported
 your dataset, the app will provide a summary of the contents of the dataset along with a preview of the
 first few rows and columns of the dataset.
 
@@ -69,7 +69,7 @@ tips by hovering over the text within the app.
 
 For more detailed information on using the *NRBA App*, including preparing and importing your dataset,
 understanding the statistical processes behind each analysis option, and interpreting the results of
-analyses, refer to the *NRBA App User's Guide* available from the Resources dropdown menu on this
+analyses, refer to the *NRBA App Reference Guide* available from the Resources dropdown menu on this
 webpage. For individualized technical assistance using this tool, please contact your IDC State Liaison or
 email IDEAdata@westat.com.
 

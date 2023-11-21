@@ -1,7 +1,7 @@
 Package: idcnrba
 Title: Interactive Application for Analyzing Representativeness and
         Nonresponse Bias
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: 
     c(person(given = "Ben",
              family = "Schneider",
@@ -51,7 +51,7 @@ Suggests: knitr, testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Depends: R (>= 4.1.0)
 NeedsCompilation: no
-Packaged: 2023-07-17 15:20:26 UTC; schneider_b
+Packaged: 2023-11-21 02:27:14 UTC; schneider_b
 Author: Ben Schneider [aut, cre] (<https://orcid.org/0000-0002-0406-8470>),
   Tamara Nimkoff [aut],
   Anthony Fucci [aut],
@@ -61,4 +61,4 @@ Author: Ben Schneider [aut, cre] (<https://orcid.org/0000-0002-0406-8470>),
   Westat [cph]
 Maintainer: Ben Schneider <BenjaminSchneider@westat.com>
 Repository: CRAN
-Date/Publication: 2023-07-17 15:40:02 UTC
+Date/Publication: 2023-11-21 08:20:05 UTC

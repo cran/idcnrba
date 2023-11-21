@@ -12,8 +12,10 @@ t_test_resp_vs_full,1,Check that you have selected at least one grouping variabl
 t_test_resp_vs_elig,2,Check that you have selected at least one grouping variable.
 t_test_vs_external_estimate,1,Check that you have selected at least one grouping variable.
 t_test_vs_external_estimate,1,Check that none of the values for the benchmark variable have been left blank.
+t_test_vs_external_estimate,1,Check that percentages for external data add to 100%.
 chisq_test_vs_external_estimate,2,Check that you have selected at least one grouping variable.
 chisq_test_vs_external_estimate,2,Check that none of the values for the benchmark variable have been left blank.
+chisq_test_vs_external_estimate,2,Check that percentages for external data add to 100%.
 analysis_across_subgroups,1,Check that you have selected at least one grouping variable.
 analysis_across_subgroups,1,Check that you have selected at least one outcome variable.
 predict_outcome_via_glm,1,Check that you have selected at least one predictor variable.

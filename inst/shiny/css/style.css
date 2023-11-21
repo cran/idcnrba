@@ -17,6 +17,7 @@ body hr {
 /* TODO: nasty DT flexdashboard bug that needs a real solution  */
 .dataTables_scrollBody {
   max-height: calc(100vh - 200px) !important;
+  min-height: 400px !important;
 }
 
 /*
@@ -120,9 +121,14 @@ a[href="#section-welcome"] {
   border-bottom: 1px solid rgba(0, 0, 0, 0.5);
 }
 
+/* Note: Content is added to dropdown menu through .Rmd file using rmarkdown/flexdashboard. This "Resources" menu is special and has custom styling. https://gitlab.westat.com/Statistics/idcnrba/-/issues/120 */
 #Resources {
   position: absolute;
   right: 0px;
+}
+#Resources > ul {
+  position: absolute;
+  margin-left: -75px;
 }
 
 #section-welcome {
